@@ -2,8 +2,8 @@ import process from "node:process";
 import { defineConfig, devices } from "@playwright/test";
 
 // End-to-end tests drive the real stack (nginx + PHP-FPM + MariaDB), started with
-// `docker compose up --build` from the repository root. They create uniquely named notes
-// and never delete anything, so they are safe to run against a dev database.
+// `docker compose up --build` from the repository root. Each test registers its own uniquely
+// named account and touches only that account's notes, so runs never collide on a shared database.
 export default defineConfig({
   testDir: "./e2e",
   timeout: 30_000,

@@ -10,6 +10,8 @@ export interface Note {
   version: number;
   createdAt: string;
   updatedAt: string;
+  /** When the note was archived; null for an active note. */
+  archivedAt: string | null;
 }
 
 /** The editable fields of a note. */

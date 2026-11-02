@@ -1,7 +1,26 @@
 <script setup lang="ts">
+import { ref } from "vue";
+import { useRouter } from "vue-router";
 import { useFlash } from "@/composables/useFlash";
+import { useSession } from "@/composables/useSession";
 
 const flash = useFlash();
+const session = useSession();
+const router = useRouter();
+const loggingOut = ref(false);
+
+async function logOut(): Promise<void> {
+  loggingOut.value = true;
+  try {
+    await session.logOut();
+  } catch {
+    // The server may be unreachable; the local session is cleared either way.
+  } finally {
+    loggingOut.value = false;
+  }
+  await router.push({ name: "login" });
+  flash.show("You are logged out.");
+}
 </script>
 
 <template>
@@ -12,6 +31,14 @@ const flash = useFlash();
         <span aria-hidden="true">🗒</span>
         Notes
       </RouterLink>
+      <div v-if="session.user.value" class="account">
+        <span class="account__name">
+          <span class="sr-only">Logged in as</span>
+          <span aria-hidden="true">👤</span>
+          {{ session.user.value.username }}
+        </span>
+        <button type="button" class="button button--small" :disabled="loggingOut" @click="logOut">Log out</button>
+      </div>
     </div>
   </header>
   <main id="main" class="app-main">
@@ -31,6 +58,10 @@ const flash = useFlash();
   background: var(--surface);
 }
 .app-header__inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
   max-width: var(--content-width);
   margin: 0 auto;
   padding: 0.9rem 1.25rem;
@@ -42,6 +73,19 @@ const flash = useFlash();
   font-size: 1.15rem;
   color: var(--text);
   text-decoration: none;
+}
+.account {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+.account__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted);
+  font-size: 0.9rem;
 }
 .app-main {
   max-width: var(--content-width);

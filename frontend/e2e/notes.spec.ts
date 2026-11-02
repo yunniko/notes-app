@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./helpers/auth";
 import { createNoteViaApi, noteCard, priorityChip, uniqueTitle } from "./helpers/notes";
 
 test.describe("creating a note", () => {
@@ -37,7 +37,8 @@ test.describe("creating a note", () => {
 });
 
 test.describe("updating a note", () => {
-  test("edits are saved and the note moves to the top of the list", async ({ page, request }) => {
+  test("edits are saved and the note moves to the top of the list", async ({ page }) => {
+    const { request } = page;
     const note = await createNoteViaApi(request, uniqueTitle("Draft agenda"), "low");
     const newer = await createNoteViaApi(request, uniqueTitle("Newer note"), "low");
     await page.goto("/");
@@ -57,7 +58,8 @@ test.describe("updating a note", () => {
     expect(titles.indexOf(newTitle)).toBeLessThan(titles.indexOf(newer.title));
   });
 
-  test("a concurrent edit is detected and can be overwritten knowingly", async ({ page, request }) => {
+  test("a concurrent edit is detected and can be overwritten knowingly", async ({ page }) => {
+    const { request } = page;
     const note = await createNoteViaApi(request, uniqueTitle("Shared shopping list"), "medium");
     await page.goto(`/notes/${note.id}`);
     await expect(page.getByLabel("Title")).toHaveValue(note.title);
@@ -82,7 +84,8 @@ test.describe("updating a note", () => {
     await expect(noteCard(page, theirs)).toHaveCount(0);
   });
 
-  test("leaving with unsaved changes asks first", async ({ page, request }) => {
+  test("leaving with unsaved changes asks first", async ({ page }) => {
+    const { request } = page;
     const note = await createNoteViaApi(request, uniqueTitle("Unsaved"), "low");
     await page.goto(`/notes/${note.id}`);
     await page.getByLabel("Title").fill("changed but not saved");
@@ -98,7 +101,8 @@ test.describe("updating a note", () => {
 });
 
 test.describe("filtering by priority", () => {
-  test("chips filter the list, and the filter lives in the URL", async ({ page, request }) => {
+  test("chips filter the list, and the filter lives in the URL", async ({ page }) => {
+    const { request } = page;
     const high = await createNoteViaApi(request, uniqueTitle("Pay rent"), "high");
     const medium = await createNoteViaApi(request, uniqueTitle("Book dentist"), "medium");
     const low = await createNoteViaApi(request, uniqueTitle("Sort photos"), "low");

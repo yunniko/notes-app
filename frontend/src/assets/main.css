@@ -26,6 +26,7 @@
 
   --danger: #c92a2a;
   --danger-bg: #fff0f0;
+  --danger-solid: #c92a2a;
   --warning: #b8860b;
   --warning-bg: #fff8e1;
   --success: #2b7a3d;
@@ -54,6 +55,7 @@
 
     --danger: #ff8787;
     --danger-bg: #3a1d1f;
+    --danger-solid: #c92a2a;
     --warning: #ffd43b;
     --warning-bg: #3a3218;
     --success: #8ce99a;
@@ -120,6 +122,18 @@ a {
 }
 .button--primary:hover {
   filter: brightness(1.08);
+}
+.button--danger {
+  color: #ffffff;
+  background: var(--danger-solid);
+  border-color: var(--danger-solid);
+}
+.button--danger:hover {
+  filter: brightness(1.08);
+}
+.button--small {
+  padding: 0.3rem 0.7rem;
+  font-size: 0.85rem;
 }
 
 .sr-only {

@@ -23,6 +23,8 @@ const serverErrors = ref<FieldErrors>({});
 const original = ref<Note | null>(null);
 /** Set when a save hit a 409: the note as someone else saved it meanwhile. */
 const conflict = ref<Note | null>(null);
+/** An archived note is edited like any other; leaving returns to the archive it came from. */
+const listRoute = computed(() => (original.value?.archivedAt ? "archive" : "notes"));
 
 const emptyInput = (): NoteInput => ({ title: "", content: "", priority: "medium" });
 const form = ref<NoteInput>(emptyInput());
@@ -72,7 +74,7 @@ async function save(input: NoteInput, version = original.value?.version): Promis
       flash.show("Note saved.");
     }
     baseline.value = { ...form.value }; // nothing unsaved any more: leave without the prompt
-    await router.push({ name: "notes" });
+    await router.push({ name: listRoute.value });
   } catch (error) {
     if (error instanceof ApiError && error.isConflict && error.current) {
       conflict.value = error.current;
@@ -104,7 +106,7 @@ function keepMine(): void {
 }
 
 function cancel(): void {
-  void router.push({ name: "notes" });
+  void router.push({ name: listRoute.value });
 }
 
 // Unsaved-changes protection, both for in-app navigation and for closing the tab.
@@ -118,7 +120,7 @@ onBeforeUnmount(() => window.removeEventListener("beforeunload", onBeforeUnload)
 
 <template>
   <section class="editor" aria-labelledby="editor-heading">
-    <RouterLink class="back" :to="{ name: 'notes' }">← All notes</RouterLink>
+    <RouterLink class="back" :to="{ name: listRoute }">{{ listRoute === "archive" ? "← Archive" : "← All notes" }}</RouterLink>
     <h1 id="editor-heading">{{ isNew ? "New note" : "Edit note" }}</h1>
 
     <p v-if="loading" role="status">Loading note…</p>
@@ -151,6 +153,10 @@ onBeforeUnmount(() => window.removeEventListener("beforeunload", onBeforeUnload)
           <button type="button" class="button button--primary" @click="keepMine">Save mine anyway</button>
         </div>
       </div>
+
+      <p v-if="original?.archivedAt" class="notice notice--info">
+        This note is archived. Restore it from the archive to see it among your notes again.
+      </p>
 
       <p v-if="saveError" class="notice notice--error" role="alert">{{ saveError }}</p>
 
@@ -204,6 +210,11 @@ onBeforeUnmount(() => window.removeEventListener("beforeunload", onBeforeUnload)
   color: var(--danger);
   border-color: var(--danger);
   background: var(--danger-bg);
+}
+.notice--info {
+  color: var(--text-muted);
+  border-color: var(--border-strong);
+  background: var(--surface);
 }
 .notice--warning {
   border-color: var(--warning);

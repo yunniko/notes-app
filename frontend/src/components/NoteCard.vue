@@ -3,7 +3,9 @@ import type { Note } from "@/domain/note";
 import { formatDateTime } from "@/domain/format";
 import PriorityBadge from "./PriorityBadge.vue";
 
-defineProps<{ note: Note }>();
+/** A note in the list, with its archive/restore and delete actions. The parent performs them. */
+defineProps<{ note: Note; busy?: boolean }>();
+const emit = defineEmits<{ archive: []; restore: []; delete: [] }>();
 </script>
 
 <template>
@@ -17,8 +19,21 @@ defineProps<{ note: Note }>();
     <!-- Text interpolation only (never v-html): note content is user input. -->
     <p v-if="note.content" class="card__content">{{ note.content }}</p>
     <p v-else class="card__content card__content--empty">No content</p>
-    <footer class="card__meta">
-      Updated <time :datetime="note.updatedAt">{{ formatDateTime(note.updatedAt) }}</time>
+    <footer class="card__footer">
+      <p class="card__meta">
+        <template v-if="note.archivedAt">
+          Archived <time :datetime="note.archivedAt">{{ formatDateTime(note.archivedAt) }}</time>
+        </template>
+        <template v-else>
+          Updated <time :datetime="note.updatedAt">{{ formatDateTime(note.updatedAt) }}</time>
+        </template>
+      </p>
+      <!-- Above the title link's stretched hit area, so these stay clickable. -->
+      <div class="card__actions">
+        <button v-if="note.archivedAt" type="button" class="button button--small" :disabled="busy" @click="emit('restore')">Restore</button>
+        <button v-else type="button" class="button button--small" :disabled="busy" @click="emit('archive')">Archive</button>
+        <button type="button" class="button button--small card__delete" :disabled="busy" @click="emit('delete')">Delete</button>
+      </div>
     </footer>
   </article>
 </template>
@@ -92,9 +107,27 @@ defineProps<{ note: Note }>();
 .card__content--empty {
   font-style: italic;
 }
-.card__meta {
+.card__footer {
   margin-top: auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.card__meta {
+  margin: 0;
   font-size: 0.8rem;
   color: var(--text-muted);
+}
+.card__actions {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  gap: 0.4rem;
+}
+.card__delete:hover {
+  border-color: var(--danger);
+  color: var(--danger);
 }
 </style>
