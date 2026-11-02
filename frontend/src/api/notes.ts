@@ -8,16 +8,19 @@ export interface ListOptions {
   priorities?: readonly Priority[];
   /** true lists the archived notes instead of the active ones. */
   archived?: boolean;
+  /** Words that must all occur in the title or content; blank = no search. */
+  search?: string;
 }
 
 /** Thin typed client for the notes API. Every call acts on the logged-in user's notes only. */
 export const notesApi = {
-  list({ priorities = [], archived = false }: ListOptions = {}, signal?: AbortSignal): Promise<Note[]> {
+  list({ priorities = [], archived = false, search = "" }: ListOptions = {}, signal?: AbortSignal): Promise<Note[]> {
     const query = new URLSearchParams();
     if (priorities.length > 0) query.set("priority", priorities.join(","));
     if (archived) query.set("archived", "true");
-    const search = query.toString();
-    return request<Note[]>("GET", `/api/notes${search ? `?${search}` : ""}`, undefined, signal);
+    if (search.trim()) query.set("q", search.trim());
+    const qs = query.toString();
+    return request<Note[]>("GET", `/api/notes${qs ? `?${qs}` : ""}`, undefined, signal);
   },
 
   get(id: number, signal?: AbortSignal): Promise<Note> {

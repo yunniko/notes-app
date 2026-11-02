@@ -5,10 +5,12 @@ import { ApiError, notesApi } from "@/api/notes";
 import ConfirmDialog from "@/components/ConfirmDialog.vue";
 import NoteCard from "@/components/NoteCard.vue";
 import PriorityFilter from "@/components/PriorityFilter.vue";
+import SearchBox from "@/components/SearchBox.vue";
 import { useListMemory } from "@/composables/useListMemory";
 import { useNoteActions } from "@/composables/useNoteActions";
 import type { Note } from "@/domain/note";
 import { parsePriorityFilter, serializePriorityFilter, type Priority } from "@/domain/priority";
+import { emptyListMessage, parseSearch, serializeSearch } from "@/domain/search";
 
 /** The active notes at "/", the archived ones at "/archive"; the same page otherwise. */
 const props = defineProps<{ archived: boolean }>();
@@ -20,11 +22,18 @@ type State = { status: "loading" } | { status: "error"; message: string } | { st
 const state = ref<State>({ status: "loading" });
 const listRoute = computed(() => (props.archived ? "archive" : "notes"));
 
-/** The filter lives in the URL, so it survives reload and can be bookmarked or shared. */
+/** Filter and search live in the URL, so they survive reload and can be bookmarked or shared. */
 const filter = computed<Priority[]>({
   get: () => parsePriorityFilter(route.query.priority),
   set: (priorities) => router.replace({ query: { ...route.query, priority: serializePriorityFilter(priorities) } }),
 });
+const search = computed<string>({
+  get: () => parseSearch(route.query.q),
+  set: (text) => router.replace({ query: { ...route.query, q: serializeSearch(text) } }),
+});
+const emptyMessage = computed(() =>
+  emptyListMessage({ archived: props.archived, search: search.value, filtered: filter.value.length > 0 })
+);
 
 let controller: AbortController | undefined;
 let loadedKey: string | undefined;
@@ -33,10 +42,10 @@ async function load(key: string): Promise<void> {
   controller?.abort(); // a newer filter wins over a slower, older response
   controller = new AbortController();
   const { signal } = controller;
-  // Keep the old cards while only the filter changes; switching Active/Archived starts over.
+  // Keep the old cards while only filter or search change; switching Active/Archived starts over.
   if (state.value.status !== "ready" || loadedKey?.split("|")[0] !== key.split("|")[0]) state.value = { status: "loading" };
   try {
-    const notes = await notesApi.list({ priorities: filter.value, archived: props.archived }, signal);
+    const notes = await notesApi.list({ priorities: filter.value, archived: props.archived, search: search.value }, signal);
     state.value = { status: "ready", notes };
     loadedKey = key;
   } catch (error) {
@@ -45,9 +54,9 @@ async function load(key: string): Promise<void> {
   }
 }
 
-// Keyed on the list and its filter, so unrelated route changes (e.g. leaving the page) do not refetch.
+// Keyed on the list, filter and search, so unrelated route changes (e.g. leaving the page) do not refetch.
 const loadKey = computed(() =>
-  route.name === listRoute.value ? `${listRoute.value}|${serializePriorityFilter(filter.value) ?? ""}` : null
+  route.name === listRoute.value ? `${listRoute.value}|${serializePriorityFilter(filter.value) ?? ""}|${search.value}` : null
 );
 watch(loadKey, (key) => key !== null && load(key), { immediate: true });
 
@@ -87,7 +96,10 @@ const { busyId, error: actionError, pendingDelete } = actions;
       </RouterLink>
     </nav>
 
-    <PriorityFilter v-model="filter" />
+    <div class="filters">
+      <SearchBox v-model="search" />
+      <PriorityFilter v-model="filter" />
+    </div>
 
     <p v-if="actionError" class="status status--error status--inline" role="alert">{{ actionError }}</p>
 
@@ -101,9 +113,12 @@ const { busyId, error: actionError, pendingDelete } = actions;
     <template v-else>
       <p class="sr-only" role="status">{{ state.notes.length }} {{ state.notes.length === 1 ? "note" : "notes" }} shown</p>
       <div v-if="state.notes.length === 0" class="empty">
-        <template v-if="filter.length > 0">
-          <p>{{ archived ? "No archived notes with this priority." : "No notes with this priority." }}</p>
-          <button type="button" class="button" @click="filter = []">Show all priorities</button>
+        <template v-if="emptyMessage">
+          <p>{{ emptyMessage }}</p>
+          <div class="empty__actions">
+            <button v-if="search" type="button" class="button" @click="search = ''">Clear search</button>
+            <button v-if="filter.length > 0" type="button" class="button" @click="filter = []">Show all priorities</button>
+          </div>
         </template>
         <p v-else-if="archived">Nothing archived. Archive a note to keep it out of your list without deleting it.</p>
         <template v-else>
@@ -154,6 +169,21 @@ const { busyId, error: actionError, pendingDelete } = actions;
 }
 .toolbar h1 {
   margin: 0;
+}
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1.25rem;
+}
+.filters .search {
+  flex: 1 1 16rem;
+}
+.empty__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
 }
 .tabs {
   display: flex;

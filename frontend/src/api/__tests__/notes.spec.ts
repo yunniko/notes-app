@@ -43,6 +43,15 @@ describe("notesApi", () => {
     expect(fetchMock.mock.calls.map((call) => call[0])).toEqual(["/api/notes", "/api/notes?priority=low&archived=true"]);
   });
 
+  it("sends a search as q, encoded, and leaves a blank one out", async () => {
+    const fetchMock = mockFetch(200, { data: [] });
+
+    await notesApi.list({ search: "  café & 50% " });
+    await notesApi.list({ search: "   " });
+
+    expect(fetchMock.mock.calls.map((call) => call[0])).toEqual(["/api/notes?q=caf%C3%A9+%26+50%25", "/api/notes"]);
+  });
+
   it("archives and restores with a POST to the note's action URL", async () => {
     const fetchMock = mockFetch(200, { data: { ...note, archivedAt: "2026-11-02T10:00:00+00:00" } });
 
