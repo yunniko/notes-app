@@ -1,7 +1,8 @@
 # Notes
 
-A small notes app: create a note with a title, content and priority, read it, edit it, and find notes by search or priority. Each user
-has a private account; notes can be archived and restored, or deleted permanently.
+A small notes app: notes with a title, content and priority, laid out as paper sheets on a dark wall. Write one in the quick-note sheet,
+read it in place, edit it on its own card, and find notes by search, priority or sort order. Each user has a private account; notes can be
+archived and restored, or deleted permanently.
 
 - **Backend:** PHP 8.5, Slim 4, PDO, MariaDB 12.3 LTS
 - **Frontend:** Vue 3 with TypeScript (Vite)
@@ -26,26 +27,35 @@ Stop the stack with `docker compose down`. Add `-v` to also delete the database 
 ## Using it
 
 - **Account:** register with a username (3–32 letters, digits, `.`, `-`, `_`) and a password of at least 8 characters, and you are logged
-  in. Your notes are visible to you only. A logged-out visitor sees only the login and register pages; opening a note's link while logged
-  out returns to that note after login. **Log out** is in the header.
-- **List:** the newest change comes first. The priority chips filter the list, and several can be on at once. The filter is part of the URL
-  (`/?priority=high,medium`), so a filtered view survives a reload and can be bookmarked.
+  in. Your notes are visible to you only. A logged-out visitor sees only the login and register pages; opening a link while logged
+  out returns to it after login. **Log out** is in the header.
+- **Wall:** your notes are sheets in columns (one column on a phone), coloured by priority. The first sheet is the quick note: type a
+  title, optionally content and a priority, and **Add note**. **×** closes it; **New note** in the header brings it back. New note shows
+  only while the quick note is out of sight.
+- **Filter and sort:** the priority buttons above the wall filter it, and several can be on at once (none pressed shows all). **Newest**,
+  **Oldest** and **Priority** order it; Priority puts high first, newest first within one priority. Both are part of the URL
+  (`/?priority=high,medium&sort=oldest`), so a view survives a reload and can be bookmarked. While a filter or search narrows the wall, the
+  quick note steps aside.
 - **Search:** the search box finds notes whose title or content contains every word you type, in any order and in part (`meet` finds
   "meeting"). Letter case and accents are ignored, so `cafe` finds "Café". Characters such as `%` and `_` are searched as typed. The
   list updates when you pause typing or press Enter; Escape or the × clears it. The search is part of the URL (`/?q=cafe`), combines with
-  the priority filter, and stays when you switch between the tabs. An empty result says what narrowed the list and offers to clear it.
-- **Read and edit:** a note opens read-only at `/notes/{id}`, with its content as written, line breaks included. **Edit** opens the form at
-  `/notes/{id}/edit`; **Save** and **Cancel** return to the note. The back link returns to the list exactly as you left it (tab, search
-  and filter).
-- **Archive:** **Archive** on a card or on the note's page moves the note out of the main list into the **Archived** tab (`/archive`),
-  newest archived first. **Restore** brings it back. Search and the priority filter work in both tabs, and an archived note can still be
-  opened and edited.
-- **Delete:** **Delete** (on a card or the note's page) asks for confirmation, then removes the note permanently. There is no undo; archive is the reversible option.
+  the priority filter, and stays when you go to the archive and back. An empty result says what narrowed the list and offers to clear it.
+- **Read:** a sheet shows its content as written, line breaks included. A long note is clipped; **Read more** opens it in place and
+  **Show less** closes it.
+- **Edit:** the pencil (**Edit**) turns that sheet into a form; **Save** keeps the changes, **Cancel** or Escape drops them. One sheet is
+  edited at a time.
+- **Archive:** **Archive** on a sheet moves the note off the wall into the archive (`/archive`), reached through **Archived notes (N)**
+  below the wall, newest archived first. **Restore** brings it back. Search, filter and sort work there too, and an archived note can
+  still be edited.
+- **Delete:** **Delete** asks for confirmation, then removes the note permanently. There is no undo; archive is the reversible option.
+- Addresses of the earlier note pages (`/notes/...`) lead to the wall.
 - **Create / edit:** the title is required (at most 200 characters, surrounding whitespace is removed). Content is optional (at most 20,000
   characters, stored exactly as typed). Priority is low, medium or high.
 - **Edit conflicts:** if the note was saved somewhere else (another tab or device) after you opened it, saving does not overwrite it.
   You see the other version and choose between **Discard mine, load theirs** and **Save mine anyway**.
-- **Unsaved changes:** leaving the editor with unsaved changes asks first, and closing the tab triggers the browser's warning.
+- **Unsaved changes:** leaving the wall while a sheet has unsaved edits asks first, and closing the tab with unsaved edits or an unsent
+  quick note triggers the browser's warning. An unsent quick note waits for you if your session expires, but is never shown to another
+  account logging in on the same tab.
 
 ## Development and tests
 
@@ -81,20 +91,24 @@ notes endpoint needs it and acts on the logged-in user's notes only. Notes look 
 }
 ```
 
-| Method and path                | Body                                                         | Success                                                                                          |
-| ------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
-| `POST /api/auth/register`      | `{"username", "password"}`                                   | `201 {"data": user}` + session cookie                                                            |
-| `POST /api/auth/login`         | `{"username", "password"}`                                   | `200 {"data": user}` + new session cookie                                                        |
-| `POST /api/auth/logout`        | —                                                            | `204`, session ended and cookie cleared                                                          |
-| `GET /api/auth/me`             | —                                                            | `200 {"data": user}`, or `401`                                                                   |
-| `GET /api/notes`               | —, optional `?q=`, `?priority=high,medium`, `?archived=true` | `200 {"data": [note, …]}`: active notes newest change first, archived ones newest archived first |
-| `POST /api/notes`              | `{"title", "content"?, "priority"}`                          | `201 {"data": note}` + `Location` header                                                         |
-| `GET /api/notes/{id}`          | —                                                            | `200 {"data": note}`                                                                             |
-| `PUT /api/notes/{id}`          | `{"title", "content"?, "priority", "version"}`               | `200 {"data": note}` with `version` + 1                                                          |
-| `POST /api/notes/{id}/archive` | —                                                            | `200 {"data": note}` with `archivedAt` set                                                       |
-| `POST /api/notes/{id}/restore` | —                                                            | `200 {"data": note}` with `archivedAt: null`                                                     |
-| `DELETE /api/notes/{id}`       | —                                                            | `204`, the note is gone                                                                          |
-| `GET /api/health`              | —                                                            | `200 {"status": "ok"}`                                                                           |
+| Method and path                | Body                                                                   | Success                                                               |
+| ------------------------------ | ---------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| `POST /api/auth/register`      | `{"username", "password"}`                                             | `201 {"data": user}` + session cookie                                 |
+| `POST /api/auth/login`         | `{"username", "password"}`                                             | `200 {"data": user}` + new session cookie                             |
+| `POST /api/auth/logout`        | —                                                                      | `204`, session ended and cookie cleared                               |
+| `GET /api/auth/me`             | —                                                                      | `200 {"data": user}`, or `401`                                        |
+| `GET /api/notes`               | —, optional `?q=`, `?priority=high,medium`, `?archived=true`, `?sort=` | `200 {"data": [note, …], "meta": {"counts": {"active", "archived"}}}` |
+| `POST /api/notes`              | `{"title", "content"?, "priority"}`                                    | `201 {"data": note}` + `Location` header                              |
+| `GET /api/notes/{id}`          | —                                                                      | `200 {"data": note}`                                                  |
+| `PUT /api/notes/{id}`          | `{"title", "content"?, "priority", "version"}`                         | `200 {"data": note}` with `version` + 1                               |
+| `POST /api/notes/{id}/archive` | —                                                                      | `200 {"data": note}` with `archivedAt` set                            |
+| `POST /api/notes/{id}/restore` | —                                                                      | `200 {"data": note}` with `archivedAt: null`                          |
+| `DELETE /api/notes/{id}`       | —                                                                      | `204`, the note is gone                                               |
+| `GET /api/health`              | —                                                                      | `200 {"status": "ok"}`                                                |
+
+`sort` is `newest` (the default), `oldest` or `priority`. Newest and oldest go by the last change for active notes and by the archiving
+time for archived ones; `priority` is high first, newest first within one priority. `meta.counts` holds the size of both lists,
+unaffected by the filters, so the client can show the archive's count.
 
 `q` is split into words on whitespace; a note matches when every word occurs in its title or content, ignoring case and accents. `%`,
 `_` and `!` match themselves. A blank `q` means no search; more than 100 characters is a 422 with `errors.q`.
@@ -118,18 +132,18 @@ Errors use [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) `application/probl
 }
 ```
 
-| Status | When                                                                                                                                 |
-| ------ | ------------------------------------------------------------------------------------------------------------------------------------ |
-| 400    | The body is not valid JSON                                                                                                           |
-| 401    | Not logged in or session expired; on login, a wrong username or password                                                             |
-| 403    | A state-changing request from another site (cross-site `Origin` or `Sec-Fetch-Site`)                                                 |
-| 404    | No such note, someone else's note, or an id that is not a positive integer                                                           |
-| 405    | Wrong method for the path                                                                                                            |
-| 409    | Stale `version`. The body's `current` holds the note as it is now                                                                    |
-| 415    | The body is not `application/json`                                                                                                   |
-| 422    | Invalid fields (`errors` maps field to message), including an unknown filter value, a search over 100 characters or a taken username |
-| 429    | Too many failed logins for this username; `Retry-After` says when to try again                                                       |
-| 500    | Unexpected failure. The details are logged and never sent to the client                                                              |
+| Status | When                                                                                                                                         |
+| ------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| 400    | The body is not valid JSON                                                                                                                   |
+| 401    | Not logged in or session expired; on login, a wrong username or password                                                                     |
+| 403    | A state-changing request from another site (cross-site `Origin` or `Sec-Fetch-Site`)                                                         |
+| 404    | No such note, someone else's note, or an id that is not a positive integer                                                                   |
+| 405    | Wrong method for the path                                                                                                                    |
+| 409    | Stale `version`. The body's `current` holds the note as it is now                                                                            |
+| 415    | The body is not `application/json`                                                                                                           |
+| 422    | Invalid fields (`errors` maps field to message), including an unknown filter or sort value, a search over 100 characters or a taken username |
+| 429    | Too many failed logins for this username; `Retry-After` says when to try again                                                               |
+| 500    | Unexpected failure. The details are logged and never sent to the client                                                                      |
 
 ## Design choices
 
@@ -160,9 +174,13 @@ decision. In brief:
   of words, which MariaDB's `FULLTEXT` does not do (whole words only, a minimum length, stopwords). Each word becomes an escaped
   `LIKE '%word%'`; the table's accent- and case-insensitive collation does the folding. The query only scans the user's own notes; at
   thousands of notes per user an n-gram or full-text index would be worth revisiting.
-- **Read-only note page** ([D015](docs/decisions/D015-read-only-note-page.md)). Opening a note shows it; only **Edit** leads to the form,
-  on its own route, so a reload or a shared link keeps the mode and Back behaves as expected. Archive, restore and delete share one
-  composable between the list and the note page.
+- **One wall, edited in place** ([D017](docs/decisions/D017-wall-with-inline-editing.md), which replaced
+  [D015](docs/decisions/D015-read-only-note-page.md)'s note pages). A note is read-only until **Edit** turns its own sheet into the form, so
+  reading never risks changing it, and the conflict flow of D004 lives in the card. Archive, restore and delete share one composable.
+- **Sort and counts in the list response** ([D016](docs/decisions/D016-sort-and-list-counts.md)). Sorting is done in SQL with an `id`
+  tie-break, so the order is stable; the counts come with the list, so the archive link needs no second request.
+- **A draft belongs to its account** ([D018](docs/decisions/D018-composer-draft-per-account.md)). The quick note keeps its draft while you
+  move around the app, and it is cleared when another account logs in on the same tab.
 - **Migrations** ([D003](docs/decisions/D003-minimal-sql-migrator.md)). Numbered SQL files, applied once each by a 65-line migrator at
   container start, so the schema can evolve without wiping the volume.
 - **Accounts and sessions** ([D010](docs/decisions/D010-notes-owned-by-users.md),
@@ -189,20 +207,20 @@ decision. In brief:
 - a session that expires while the page is open (back to login, then back to where you were)
 - a login redirect that points to another site (ignored)
 - a username that differs only in letter case (treated as taken)
-- leaving with unsaved changes
+- leaving with unsaved changes, and an unsent quick note when another account logs in
 - a double-submitted form (the button is disabled while saving)
 - an aborted list request when the filter changes quickly
 - a server that cannot be reached
 
 Each has an automated test in `backend/tests/`, `frontend/src/**/__tests__/` or `frontend/e2e/`, except the aborted list request, which
-is handled in `NotesListView.vue` but not tested on its own.
+is handled in `NotesWallView.vue` but not tested on its own.
 
 ### Accessibility and security
 
 **Accessibility.** The app has semantic landmarks and headings, a skip link, labelled fields, and errors linked with `aria-describedby`.
-Focus moves to the first invalid field. Filter chips use `aria-pressed`, and save confirmations are announced through a live region. The delete
+Focus moves to the first invalid field. Filter, sort and priority buttons use `aria-pressed`, a long note's Read more uses `aria-expanded`, and save confirmations are announced through a live region. The delete
 confirmation is a native modal `<dialog>`: focus stays inside it and Escape cancels. It
-supports keyboard-only use and follows the system light/dark theme.
+supports keyboard-only use.
 
 **Security.**
 
@@ -222,7 +240,20 @@ What I would add next, roughly in order:
 1. **Pagination**: a keyset cursor on `(updated_at, id)`, since the list is unbounded today.
 2. **Account management**: change password, delete account, password reset (needs an email address and a mail service).
 3. An undo for delete; highlighting the search words in results.
-4. Markdown rendering of content (sanitised), tags, sorting options.
+4. Markdown rendering of content (sanitised), tags.
+
+## Look and feel
+
+A dark navy board with paper sheets: Cormorant Garamond for headings and titles, Jost for text and controls, silver hairlines, and one
+paper tint per priority (rose for high, gold for medium, sage for low, grey for archived). The tokens and the shared parts live in
+`frontend/src/assets/main.css`; components add only their layout.
+
+| Asset                                                 | Source                                                                            | Licence                   |
+| ----------------------------------------------------- | --------------------------------------------------------------------------------- | ------------------------- |
+| Cormorant Garamond, Jost                              | self-hosted through `@fontsource/cormorant-garamond` and `@fontsource/jost` 5.3.0 | SIL Open Font License 1.1 |
+| `frontend/src/assets/textures/board.jpg`, `paper.jpg` | supplied with the visual design, cleared for use in this project                  | used with permission      |
+
+Nothing loads from a third-party host, so the Content Security Policy stays at `'self'`.
 
 ## Project layout
 
