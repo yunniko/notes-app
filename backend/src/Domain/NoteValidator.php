@@ -135,6 +135,21 @@ final class NoteValidator
     }
 
     /**
+     * Parses the `sort` order of the list. Blank means newest first.
+     *
+     * @throws ValidationFailed
+     */
+    public function sortOrder(mixed $raw): NoteSort
+    {
+        if ($raw === null || $raw === '') {
+            return NoteSort::Newest;
+        }
+
+        return (is_string($raw) ? NoteSort::tryFrom($raw) : null)
+            ?? throw new ValidationFailed(['sort' => sprintf('Sort must be one of: %s.', implode(', ', NoteSort::values()))]);
+    }
+
+    /**
      * Parses the list endpoint's query string, reporting every invalid parameter at once.
      *
      * @param array<array-key, mixed> $params
@@ -147,6 +162,7 @@ final class NoteValidator
         $priorities = [];
         $archived = false;
         $terms = [];
+        $sort = NoteSort::Newest;
         try {
             $priorities = $this->priorityFilter($params['priority'] ?? null);
         } catch (ValidationFailed $e) {
@@ -162,11 +178,16 @@ final class NoteValidator
         } catch (ValidationFailed $e) {
             $errors += $e->errors;
         }
+        try {
+            $sort = $this->sortOrder($params['sort'] ?? null);
+        } catch (ValidationFailed $e) {
+            $errors += $e->errors;
+        }
         if ($errors !== []) {
             throw new ValidationFailed($errors);
         }
 
-        return new NoteQuery($priorities, $archived, $terms);
+        return new NoteQuery($priorities, $archived, $terms, $sort);
     }
 
     /**

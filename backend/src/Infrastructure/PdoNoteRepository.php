@@ -7,9 +7,11 @@ namespace App\Infrastructure;
 use App\Domain\Exception\NoteNotFound;
 use App\Domain\Exception\VersionConflict;
 use App\Domain\Note;
+use App\Domain\NoteCounts;
 use App\Domain\NoteDraft;
 use App\Domain\NoteQuery;
 use App\Domain\NoteRepository;
+use App\Domain\NoteSort;
 use App\Domain\Priority;
 use PDO;
 
@@ -39,12 +41,29 @@ final readonly class PdoNoteRepository implements NoteRepository
             $pattern = '%' . strtr($term, ['!' => '!!', '%' => '!%', '_' => '!_']) . '%';
             array_push($params, $pattern, $pattern);
         }
-        $sql .= $query->archived ? ' ORDER BY archived_at DESC, id DESC' : ' ORDER BY updated_at DESC, id DESC';
+        $time = $query->archived ? 'archived_at' : 'updated_at';
+        $sql .= match ($query->sort) {
+            NoteSort::Newest => " ORDER BY {$time} DESC, id DESC",
+            NoteSort::Oldest => " ORDER BY {$time} ASC, id ASC",
+            NoteSort::Priority => " ORDER BY FIELD(priority, 'high', 'medium', 'low'), {$time} DESC, id DESC",
+        };
 
         $statement = $this->pdo->prepare($sql);
         $statement->execute($params);
 
         return array_map(self::hydrate(...), Rows::all($statement));
+    }
+
+    public function counts(int $ownerId): NoteCounts
+    {
+        $statement = $this->pdo->prepare(
+            'SELECT COALESCE(SUM(archived_at IS NULL), 0) AS active, COALESCE(SUM(archived_at IS NOT NULL), 0) AS archived
+               FROM notes WHERE user_id = ?',
+        );
+        $statement->execute([$ownerId]);
+        $row = Rows::first($statement) ?? ['active' => 0, 'archived' => 0];
+
+        return new NoteCounts(Rows::int($row, 'active'), Rows::int($row, 'archived'));
     }
 
     public function get(int $ownerId, int $id): Note

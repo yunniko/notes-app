@@ -134,11 +134,43 @@ final class NoteServiceTest extends TestCase
     public function testListReportsEveryBadFilterTogether(): void
     {
         try {
-            $this->service->list(self::OWNER, ['priority' => 'urgent', 'archived' => 'maybe', 'q' => ['x']]);
+            $this->service->list(self::OWNER, ['priority' => 'urgent', 'archived' => 'maybe', 'q' => ['x'], 'sort' => 'size']);
             self::fail('Expected ValidationFailed.');
         } catch (ValidationFailed $e) {
-            self::assertSame(['priority', 'archived', 'q'], array_keys($e->errors));
+            self::assertSame(['priority', 'archived', 'q', 'sort'], array_keys($e->errors));
         }
+    }
+
+    public function testListSortsByNewestOldestOrPriorityInBothLists(): void
+    {
+        $low = $this->service->create(self::OWNER, ['title' => 'Low', 'priority' => 'low']);
+        $high = $this->service->create(self::OWNER, ['title' => 'High', 'priority' => 'high']);
+        $this->service->create(self::OWNER, ['title' => 'Medium', 'priority' => 'medium']);
+        $this->service->create(self::OWNER, ['title' => 'High, later', 'priority' => 'high']);
+
+        self::assertSame(['High, later', 'Medium', 'High', 'Low'], $this->titles($this->service->list(self::OWNER)));
+        self::assertSame(['High, later', 'Medium', 'High', 'Low'], $this->titles($this->service->list(self::OWNER, ['sort' => 'newest'])));
+        self::assertSame(['Low', 'High', 'Medium', 'High, later'], $this->titles($this->service->list(self::OWNER, ['sort' => 'oldest'])));
+        self::assertSame(['High, later', 'High', 'Medium', 'Low'], $this->titles($this->service->list(self::OWNER, ['sort' => 'priority'])));
+
+        // The archive sorts by when a note was archived, not when it was written.
+        $this->service->archive(self::OWNER, $high->id);
+        $this->service->archive(self::OWNER, $low->id);
+        self::assertSame(['Low', 'High'], $this->titles($this->service->list(self::OWNER, ['archived' => 'true'])));
+        self::assertSame(['High', 'Low'], $this->titles($this->service->list(self::OWNER, ['archived' => 'true', 'sort' => 'oldest'])));
+        self::assertSame(['High', 'Low'], $this->titles($this->service->list(self::OWNER, ['archived' => 'true', 'sort' => 'priority'])));
+    }
+
+    public function testCountsCoverBothListsOfOneOwnerOnly(): void
+    {
+        self::assertSame(['active' => 0, 'archived' => 0], $this->service->counts(self::OWNER)->toArray());
+
+        $this->service->create(self::OWNER, ['title' => 'A', 'priority' => 'low']);
+        $b = $this->service->create(self::OWNER, ['title' => 'B', 'priority' => 'low']);
+        $this->service->archive(self::OWNER, $b->id);
+        $this->service->create(2, ['title' => 'Not mine', 'priority' => 'low']);
+
+        self::assertSame(['active' => 1, 'archived' => 1], $this->service->counts(self::OWNER)->toArray());
     }
 
     public function testSearchNeedsEveryTermInTitleOrContentAndCombinesWithFilters(): void

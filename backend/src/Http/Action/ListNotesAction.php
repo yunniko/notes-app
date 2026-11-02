@@ -11,15 +11,23 @@ use App\Http\Middleware\RequireUser;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
-/** GET /api/notes?priority=high,medium&archived=true&q=budget+meeting */
+/**
+ * GET /api/notes?priority=high,medium&archived=true&q=budget+meeting&sort=priority
+ *
+ * `meta.counts` carries the size of both lists, unfiltered, for the archive link (D016).
+ */
 final readonly class ListNotesAction
 {
     public function __construct(private NoteService $notes) {}
 
     public function __invoke(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        $notes = $this->notes->list(RequireUser::user($request)->id, $request->getQueryParams());
+        $ownerId = RequireUser::user($request)->id;
+        $notes = $this->notes->list($ownerId, $request->getQueryParams());
 
-        return Json::respond($response, ['data' => array_map(static fn(Note $note): array => $note->toArray(), $notes)]);
+        return Json::respond($response, [
+            'data' => array_map(static fn(Note $note): array => $note->toArray(), $notes),
+            'meta' => ['counts' => $this->notes->counts($ownerId)->toArray()],
+        ]);
     }
 }

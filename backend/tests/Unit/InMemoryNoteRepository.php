@@ -7,9 +7,11 @@ namespace App\Tests\Unit;
 use App\Domain\Exception\NoteNotFound;
 use App\Domain\Exception\VersionConflict;
 use App\Domain\Note;
+use App\Domain\NoteCounts;
 use App\Domain\NoteDraft;
 use App\Domain\NoteQuery;
 use App\Domain\NoteRepository;
+use App\Domain\NoteSort;
 use DateTimeImmutable;
 
 /** Test double honouring the NoteRepository contract, including owner scoping and version checks. */
@@ -36,11 +38,22 @@ final class InMemoryNoteRepository implements NoteRepository
                 && ($query->priorities === [] || in_array($n->priority, $query->priorities, true))
                 && $matches($n),
         );
-        usort($notes, static fn(Note $a, Note $b): int => $query->archived
-            ? [$b->archivedAt, $b->id] <=> [$a->archivedAt, $a->id]
-            : [$b->updatedAt, $b->id] <=> [$a->updatedAt, $a->id]);
+        $time = static fn(Note $n): array => [$query->archived ? $n->archivedAt : $n->updatedAt, $n->id];
+        usort($notes, static fn(Note $a, Note $b): int => match ($query->sort) {
+            NoteSort::Newest => $time($b) <=> $time($a),
+            NoteSort::Oldest => $time($a) <=> $time($b),
+            NoteSort::Priority => [$a->priority->rank(), ...$time($b)] <=> [$b->priority->rank(), ...$time($a)],
+        });
 
         return $notes;
+    }
+
+    public function counts(int $ownerId): NoteCounts
+    {
+        $mine = array_filter($this->notes, fn(Note $n): bool => $this->owners[$n->id] === $ownerId);
+        $archived = count(array_filter($mine, static fn(Note $n): bool => $n->archivedAt !== null));
+
+        return new NoteCounts(count($mine) - $archived, $archived);
     }
 
     public function get(int $ownerId, int $id): Note

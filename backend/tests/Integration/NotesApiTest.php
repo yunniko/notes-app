@@ -134,6 +134,37 @@ final class NotesApiTest extends ApiTestCase
         self::assertSame([], $this->list('?q=budget'));
     }
 
+    public function testListSortsAndCarriesTheCountsOfBothLists(): void
+    {
+        $this->request('POST', '/api/notes', ['title' => 'Low', 'priority' => 'low']);
+        usleep(5_000);
+        $this->request('POST', '/api/notes', ['title' => 'High', 'priority' => 'high']);
+        usleep(5_000);
+        $this->request('POST', '/api/notes', ['title' => 'Medium', 'priority' => 'medium']);
+        usleep(5_000);
+        $archived = $this->data($this->request('POST', '/api/notes', ['title' => 'Gone', 'priority' => 'high']));
+        $this->request('POST', $this->url($archived) . '/archive');
+
+        self::assertSame(['Medium', 'High', 'Low'], array_column($this->list('?sort=newest'), 'title'));
+        self::assertSame(['Low', 'High', 'Medium'], array_column($this->list('?sort=oldest'), 'title'));
+        self::assertSame(['High', 'Medium', 'Low'], array_column($this->list('?sort=priority'), 'title'));
+        self::assertSame(['High'], array_column($this->list('?sort=priority&priority=high&q=hig'), 'title'));
+
+        // Counts ignore the filter and the search, and never include another user's notes.
+        $counts = function (string $query): mixed {
+            $meta = $this->json($this->request('GET', '/api/notes' . $query))['meta'] ?? null;
+
+            return is_array($meta) ? $meta['counts'] ?? null : null;
+        };
+        self::assertSame(['active' => 3, 'archived' => 1], $counts('?priority=low&q=nothing'));
+        $this->register('bob');
+        self::assertSame(['active' => 0, 'archived' => 0], $counts(''));
+
+        $bad = $this->request('GET', '/api/notes?sort=title');
+        self::assertSame(422, $bad->getStatusCode());
+        self::assertArrayHasKey('sort', (array) $this->json($bad)['errors']);
+    }
+
     public function testListShowsMostRecentlyUpdatedFirst(): void
     {
         $first = $this->data($this->request('POST', '/api/notes', ['title' => 'First', 'priority' => 'low']));

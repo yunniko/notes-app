@@ -18,5 +18,6 @@ final readonly class NoteQuery
         public array $priorities = [],
         public bool $archived = false,
         public array $terms = [],
+        public NoteSort $sort = NoteSort::Newest,
     ) {}
 }

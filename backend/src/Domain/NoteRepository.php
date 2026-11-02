@@ -17,13 +17,15 @@ use App\Domain\Exception\VersionConflict;
 interface NoteRepository
 {
     /**
-     * The owner's notes matching $query: active ones most recently updated first, or archived
-     * ones most recently archived first. A search term matches as a substring of the title or
-     * the content, ignoring letter case and accents (D014).
+     * The owner's notes matching $query, in the order of $query->sort (see NoteSort). A search
+     * term matches as a substring of the title or the content, ignoring letter case and accents (D014).
      *
      * @return list<Note>
      */
     public function findAll(int $ownerId, NoteQuery $query = new NoteQuery()): array;
+
+    /** How many active and archived notes the owner has. */
+    public function counts(int $ownerId): NoteCounts;
 
     /** @throws NoteNotFound */
     public function get(int $ownerId, int $id): Note;

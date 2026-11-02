@@ -19,4 +19,14 @@ enum Priority: string
     {
         return array_map(static fn(self $p): string => $p->value, self::cases());
     }
+
+    /** Position when sorting by priority: high first. */
+    public function rank(): int
+    {
+        return match ($this) {
+            self::High => 0,
+            self::Medium => 1,
+            self::Low => 2,
+        };
+    }
 }

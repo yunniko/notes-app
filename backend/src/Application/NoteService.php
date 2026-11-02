@@ -8,6 +8,7 @@ use App\Domain\Exception\NoteNotFound;
 use App\Domain\Exception\ValidationFailed;
 use App\Domain\Exception\VersionConflict;
 use App\Domain\Note;
+use App\Domain\NoteCounts;
 use App\Domain\NoteRepository;
 use App\Domain\NoteValidator;
 
@@ -23,7 +24,7 @@ final readonly class NoteService
     ) {}
 
     /**
-     * @param array<array-key, mixed> $params the raw query string: `priority`, `archived`, `q`
+     * @param array<array-key, mixed> $params the raw query string: `priority`, `archived`, `q`, `sort`
      *
      * @return list<Note>
      *
@@ -32,6 +33,11 @@ final readonly class NoteService
     public function list(int $ownerId, array $params = []): array
     {
         return $this->notes->findAll($ownerId, $this->validator->listQuery($params));
+    }
+
+    public function counts(int $ownerId): NoteCounts
+    {
+        return $this->notes->counts($ownerId);
     }
 
     /** @throws NoteNotFound */

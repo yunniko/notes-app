@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit;
 
 use App\Domain\Exception\ValidationFailed;
+use App\Domain\NoteSort;
 use App\Domain\NoteValidator;
 use App\Domain\Priority;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -141,6 +142,23 @@ final class NoteValidatorTest extends TestCase
                 self::fail('Expected ValidationFailed.');
             } catch (ValidationFailed $e) {
                 self::assertArrayHasKey('q', $e->errors);
+            }
+        }
+    }
+
+    public function testSortDefaultsToNewestAndRejectsUnknownOrders(): void
+    {
+        self::assertSame(NoteSort::Newest, $this->validator->sortOrder(null));
+        self::assertSame(NoteSort::Newest, $this->validator->sortOrder(''));
+        self::assertSame(NoteSort::Oldest, $this->validator->sortOrder('oldest'));
+        self::assertSame(NoteSort::Priority, $this->validator->sortOrder('priority'));
+
+        foreach (['Priority', 'title', ['newest']] as $raw) {
+            try {
+                $this->validator->sortOrder($raw);
+                self::fail('Expected ValidationFailed.');
+            } catch (ValidationFailed $e) {
+                self::assertArrayHasKey('sort', $e->errors);
             }
         }
     }
