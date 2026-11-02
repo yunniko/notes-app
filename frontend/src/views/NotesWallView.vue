@@ -293,10 +293,11 @@ const shownError = computed(() => notesActionError.value ?? actionError.value);
       </div>
     </template>
 
-    <template v-if="!archived">
+    <!-- The archive link shows only when the archive holds something. -->
+    <template v-if="!archived && counts !== null && counts.archived > 0">
       <div class="rule wall-foot"></div>
       <p class="wall-foot__link">
-        <RouterLink class="quiet" :to="otherListLink">Archived notes{{ counts ? ` (${counts.archived})` : "" }}</RouterLink>
+        <RouterLink class="quiet" :to="otherListLink">Archived notes ({{ counts.archived }})</RouterLink>
       </p>
     </template>
 

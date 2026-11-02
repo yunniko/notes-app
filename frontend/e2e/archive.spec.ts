@@ -6,7 +6,9 @@ test.describe("archiving", () => {
     const note = await createNoteViaApi(page.request, uniqueTitle("Old plan"), "low");
     const other = await createNoteViaApi(page.request, uniqueTitle("Still current"), "high");
     await page.goto("/");
-    await expect(archiveLink(page)).toHaveText("Archived notes (0)");
+    // An empty archive has no link to it.
+    await expect(noteCard(page, other.title)).toBeVisible();
+    await expect(archiveLink(page)).toHaveCount(0);
 
     await noteCard(page, note.title).getByRole("button", { name: "Archive" }).click();
     await expect(page.getByText("Note archived.")).toBeVisible();
@@ -35,6 +37,7 @@ test.describe("archiving", () => {
     await page.getByRole("link", { name: "← Back to notes" }).click();
     await expect(page).toHaveURL("/");
     await expect(noteCard(page, note.title)).toBeVisible();
+    await expect(archiveLink(page)).toHaveCount(0);
   });
 
   test("an archived note can still be edited in place", async ({ page }) => {

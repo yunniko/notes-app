@@ -149,6 +149,9 @@ test.describe("editing on the card", () => {
 
   test("leaving the wall with unsaved edits asks first", async ({ page }) => {
     const note = await createNoteViaApi(page.request, uniqueTitle("Unsaved"), "low");
+    // Something in the archive, so the wall links to it.
+    const old = await createNoteViaApi(page.request, uniqueTitle("Archived one"), "low");
+    expect((await page.request.post(`/api/notes/${old.id}/archive`)).status()).toBe(200);
     await page.goto("/");
     await noteCard(page, note.title).getByRole("button", { name: "Edit" }).click();
     await page.getByRole("form", { name: "Edit note" }).getByLabel("Title").fill("changed but not saved");

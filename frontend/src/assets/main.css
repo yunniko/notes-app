@@ -56,7 +56,7 @@
   --archived-bg: #dedcd7;
 
   --sheet-shadow: 0 1px 0 rgb(255 255 255 / 0.08) inset, 0 2px 3px rgb(0 0 0 / 0.3), 0 18px 30px -18px rgb(0 0 0 / 0.7);
-  --sheet-shadow-lifted: 0 2px 3px rgb(0 0 0 / 0.3), 0 26px 40px -20px rgb(0 0 0 / 0.8);
+  --sheet-shadow-lifted: 0 1px 0 rgb(255 255 255 / 0.08) inset, 0 4px 8px rgb(0 0 0 / 0.45), 0 30px 48px -16px rgb(0 0 0 / 0.95);
   --focus-ring: 0 0 0 3px rgb(220 225 232 / 0.55);
 }
 

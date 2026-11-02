@@ -155,12 +155,10 @@ const dateLabel = computed(() =>
 
 <style scoped>
 .note {
-  transition:
-    transform 0.2s,
-    box-shadow 0.2s;
+  transition: box-shadow 0.2s;
 }
+/* Hover deepens the shadow; the sheet stays where it is. */
 .note:hover {
-  transform: translateY(-3px);
   box-shadow: var(--sheet-shadow-lifted);
 }
 .note--long {
@@ -169,7 +167,6 @@ const dateLabel = computed(() =>
 .note--open,
 .note--open:hover {
   padding: 20px;
-  transform: none;
   box-shadow:
     0 0 0 3px rgb(220 225 232 / 0.55),
     0 26px 40px -20px rgb(0 0 0 / 0.8);
