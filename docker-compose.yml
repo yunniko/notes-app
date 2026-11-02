@@ -6,6 +6,7 @@ name: notes-app
 services:
   db:
     image: mariadb:12.3
+    restart: unless-stopped
     environment:
       MARIADB_DATABASE: ${DB_NAME:-notes}
       MARIADB_USER: ${DB_USER:-notes}
@@ -27,6 +28,7 @@ services:
     build:
       context: ./backend
       target: prod
+    restart: unless-stopped
     environment: &db-env
       DB_HOST: db
       DB_PORT: 3306
@@ -40,6 +42,7 @@ services:
 
   web:
     build: ./frontend
+    restart: unless-stopped
     ports:
       - "127.0.0.1:${APP_PORT:-8088}:80"
     depends_on:

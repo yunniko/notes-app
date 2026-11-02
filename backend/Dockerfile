@@ -23,7 +23,7 @@ COPY public ./public
 COPY src ./src
 RUN composer dump-autoload --no-dev --classmap-authoritative \
  && rm /usr/bin/composer
-COPY docker-entrypoint.sh /usr/local/bin/notes-entrypoint
+COPY --chmod=755 docker-entrypoint.sh /usr/local/bin/notes-entrypoint
 USER www-data
 ENTRYPOINT ["notes-entrypoint"]
 CMD ["php-fpm"]
