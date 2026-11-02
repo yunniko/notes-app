@@ -173,3 +173,8 @@ docker/             MariaDB init script (creates the test database)
 docs/decisions/     One file per design decision
 docker-compose.yml  db, api, web (+ api-dev for checks)
 ```
+
+## AI assistance
+
+This project was built with the help of an AI coding assistant, [Claude Code](https://claude.com/claude-code). Commits it contributed to
+carry a `Co-Authored-By: Claude` trailer.
