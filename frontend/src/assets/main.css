@@ -1,66 +1,63 @@
-/* Design tokens. Colours are chosen for WCAG AA contrast on both themes. */
+/*
+ * The "Notes wall" design: a dark textured board, notes on paper sheets with a silver frame,
+ * Cormorant Garamond for headings and Jost for text. One theme only; the design is dark by intent.
+ * Values follow the design mockup; the shared pieces (sheet, buttons, tracks) are global classes
+ * so every view composes the same parts.
+ */
+@import "@fontsource/cormorant-garamond/500.css";
+@import "@fontsource/cormorant-garamond/600.css";
+@import "@fontsource/cormorant-garamond/700.css";
+@import "@fontsource/cormorant-garamond/500-italic.css";
+@import "@fontsource/cormorant-garamond/600-italic.css";
+@import "@fontsource/jost/400.css";
+@import "@fontsource/jost/500.css";
+@import "@fontsource/jost/600.css";
+
 :root {
-  color-scheme: light dark;
-  --content-width: 72rem;
-  --radius: 10px;
-  --radius-sm: 6px;
-  --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color-scheme: dark;
+  --serif: "Cormorant Garamond", Georgia, "Times New Roman", serif;
+  --sans: "Jost", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --content-width: 1360px;
 
-  --bg: #f6f7f9;
-  --surface: #ffffff;
-  --text: #1c2128;
-  --text-muted: #57606a;
-  --border: #e1e4e8;
-  --border-strong: #c4c9d0;
-  --accent: #3b5bdb;
-  --accent-contrast: #ffffff;
-  --focus: #4c6ef5;
-  --shadow: 0 4px 14px rgb(0 0 0 / 0.08);
+  /* On the board */
+  --board: #080f1d;
+  --cream: #f2eada;
+  --on-board-muted: #c9d1de;
+  --placeholder-on-board: #aeb8ca;
+  --silver: #aeb6c2;
+  --silver-line: rgb(174 182 194 / 0.55);
+  --silver-faint: rgb(174 182 194 / 0.3);
+  --silver-light: #dce1e8;
+  --silver-bright: #eef1f5;
+  --navy: #14223b;
+  --navy-hover: #1e3157;
+  --navy-deep: #13213b;
+  --error-on-board: #f0a99b;
 
-  --priority-high: #c92a2a;
-  --priority-high-bg: #fff0f0;
-  --priority-medium: #9c5a00;
-  --priority-medium-bg: #fff6e5;
-  --priority-low: #2b7a3d;
-  --priority-low-bg: #edf8ef;
+  /* On paper */
+  --ink: #1e2433;
+  --ink-body: #383c48;
+  --ink-muted: #5a616c;
+  --ink-soft: #5e5a50;
+  --paper-cream: #fdfaf3;
+  --paper-menu: #faf5ea;
+  --paper-line: rgb(110 118 130 / 0.35);
+  --danger: #8a2b1f;
 
-  --danger: #c92a2a;
-  --danger-bg: #fff0f0;
-  --danger-solid: #c92a2a;
-  --warning: #b8860b;
-  --warning-bg: #fff8e1;
-  --success: #2b7a3d;
-  --success-bg: #edf8ef;
-}
+  --high: #8a2b1f;
+  --high-bg: #f3d8ce;
+  --high-dot: #e59a8c;
+  --medium: #6e5212;
+  --medium-bg: #f2e2b8;
+  --medium-dot: #e3c27a;
+  --low: #2e5537;
+  --low-bg: #d9e4cf;
+  --low-dot: #9cc7a3;
+  --archived-bg: #dedcd7;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #111418;
-    --surface: #1a1f25;
-    --text: #e6e9ed;
-    --text-muted: #9aa4af;
-    --border: #2b323a;
-    --border-strong: #3d4651;
-    --accent: #7b93ff;
-    --accent-contrast: #0b1020;
-    --focus: #91a7ff;
-    --shadow: 0 4px 14px rgb(0 0 0 / 0.4);
-
-    --priority-high: #ff8787;
-    --priority-high-bg: #3a1d1f;
-    --priority-medium: #ffc078;
-    --priority-medium-bg: #3a2c18;
-    --priority-low: #8ce99a;
-    --priority-low-bg: #1b3322;
-
-    --danger: #ff8787;
-    --danger-bg: #3a1d1f;
-    --danger-solid: #c92a2a;
-    --warning: #ffd43b;
-    --warning-bg: #3a3218;
-    --success: #8ce99a;
-    --success-bg: #1b3322;
-  }
+  --sheet-shadow: 0 1px 0 rgb(255 255 255 / 0.08) inset, 0 2px 3px rgb(0 0 0 / 0.3), 0 18px 30px -18px rgb(0 0 0 / 0.7);
+  --sheet-shadow-lifted: 0 2px 3px rgb(0 0 0 / 0.3), 0 26px 40px -20px rgb(0 0 0 / 0.8);
+  --focus-ring: 0 0 0 3px rgb(220 225 232 / 0.55);
 }
 
 *,
@@ -71,69 +68,476 @@
 
 body {
   margin: 0;
-  font-family: var(--font);
+  font-family: var(--sans);
   font-size: 1rem;
   line-height: 1.5;
-  color: var(--text);
-  background: var(--bg);
+  color: var(--cream);
+  background: var(--board);
   -webkit-font-smoothing: antialiased;
 }
 
-h1 {
-  font-size: 1.6rem;
-  line-height: 1.25;
-}
-
 a {
-  color: var(--accent);
+  color: var(--silver-light);
+}
+a:hover {
+  color: var(--silver-bright);
 }
 
 :focus-visible {
-  outline: 3px solid var(--focus);
+  outline: 2px solid var(--silver-light);
   outline-offset: 2px;
 }
 
-.button {
+/* --- Surfaces ---------------------------------------------------------------------------- */
+
+.board {
+  min-height: 100vh;
+  background-color: var(--board);
+  background-image: url("./textures/board.jpg"), linear-gradient(180deg, rgb(255 255 255 / 0.015) 0%, rgb(0 0 0 / 0.18) 100%);
+  background-size:
+    700px auto,
+    100% 100%;
+  background-blend-mode: screen, normal;
+}
+
+.paper {
+  background-image: linear-gradient(160deg, rgb(255 255 255 / 0.35), rgb(255 255 255 / 0) 45%), url("./textures/paper.jpg");
+  background-size:
+    100% 100%,
+    600px 400px;
+  background-blend-mode: normal, multiply;
+}
+
+/* A note sheet: paper with an inset silver frame. Colour comes from a priority modifier. */
+.sheet {
+  position: relative;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 24px 24px 14px;
+  border: 0;
+  border-radius: 2px;
+  background-color: var(--paper-cream);
+  color: var(--ink);
+  box-shadow: var(--sheet-shadow);
+}
+.sheet::before {
+  content: "";
+  position: absolute;
+  inset: 7px;
+  border: 2.5px solid transparent;
+  border-image: linear-gradient(135deg, #6b7380 0%, #c3c9d2 35%, #5a616c 65%, #aeb6c2 100%) 1;
+  border-radius: 1px;
+  box-shadow:
+    0 1px 0 rgb(255 255 255 / 0.75),
+    inset 0 1px 0 rgb(60 66 76 / 0.12);
+  pointer-events: none;
+}
+.sheet--high {
+  background-color: var(--high-bg);
+}
+.sheet--medium {
+  background-color: var(--medium-bg);
+}
+.sheet--low {
+  background-color: var(--low-bg);
+}
+.sheet--archived {
+  background-color: var(--archived-bg);
+}
+.sheet--archived::before {
+  border-image: linear-gradient(135deg, #8e8a80 0%, #c9c5ba 35%, #77736a 65%, #b5b1a6 100%) 1;
+}
+/* Anything interactive inside a sheet sits above its frame. */
+.sheet > * {
+  position: relative;
+}
+
+/* An empty or message box drawn straight on the board. */
+.board-box {
+  padding: 56px 24px;
+  text-align: center;
+  color: var(--cream);
+  border: 1px solid rgb(174 182 194 / 0.5);
+  box-shadow:
+    inset 0 0 0 6px var(--board),
+    inset 0 0 0 7px var(--silver-faint);
+  border-radius: 6px;
+}
+.board-box__message {
+  margin: 0 0 18px;
+  font: italic 500 22px var(--serif);
+}
+.board-box__message:last-child {
+  margin-bottom: 0;
+}
+.board-box__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.rule {
+  height: 0;
+  border-top: 1px solid rgb(174 182 194 / 0.45);
+  box-shadow: 0 3px 0 -2px rgb(174 182 194 / 0.25);
+}
+
+/* --- Type -------------------------------------------------------------------------------- */
+
+.display {
+  margin: 0;
+  font: 600 40px/1.1 var(--serif);
+  letter-spacing: 0.02em;
+  color: var(--cream);
+}
+.lead {
+  margin: 0;
+  font: italic 500 17px var(--serif);
+  color: var(--on-board-muted);
+}
+
+/* Priority label: a coloured dot and small caps. */
+.tag {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 0.4rem;
-  padding: 0.55rem 1.1rem;
-  font: inherit;
-  font-weight: 600;
-  color: var(--text);
-  background: var(--surface);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-sm);
+  gap: 7px;
+  font: 600 11px var(--sans);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+.tag--high {
+  color: var(--high);
+}
+.tag--medium {
+  color: var(--medium);
+}
+.tag--low {
+  color: var(--low);
+}
+.sheet--archived .tag {
+  color: #55524b;
+}
+.dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 0 2px rgb(174 182 194 / 0.35);
+}
+
+/* Silver-gradient text for dates on paper. */
+.gdate {
+  background: linear-gradient(90deg, #5a616c 0%, #7d8592 45%, #3f4650 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font: italic 600 15.5px var(--serif);
+}
+
+/* --- Controls on the board --------------------------------------------------------------- */
+
+/* A segmented track of toggle buttons (filter, sort). */
+.track {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 2px;
+  background: rgb(0 0 0 / 0.25);
+  border: 1px solid rgb(174 182 194 / 0.45);
+}
+.seg {
+  height: 34px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 1px;
+  background: transparent;
+  color: var(--on-board-muted);
+  font: 500 12px var(--sans);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+.seg:hover {
+  color: var(--cream);
+}
+.seg[aria-pressed="true"] {
+  background: var(--cream);
+  color: var(--navy);
+  box-shadow:
+    0 1px 0 rgb(255 255 255 / 0.6) inset,
+    0 2px 6px rgb(0 0 0 / 0.35);
+}
+
+/* An outlined button on the board. */
+.chip {
+  height: 38px;
+  padding: 0 18px;
+  border-radius: 2px;
+  border: 1px solid rgb(174 182 194 / 0.6);
+  background: transparent;
+  color: var(--cream);
+  font: 500 13px var(--sans);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   text-decoration: none;
   cursor: pointer;
 }
-.button:hover {
-  border-color: var(--accent);
+.chip:hover {
+  color: var(--cream);
+  background: rgb(174 182 194 / 0.12);
 }
-.button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+
+/* The silver-framed navy call to action (New note). */
+.goldbtn {
+  height: 44px;
+  padding: 0 20px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1.5px solid transparent;
+  border-image: linear-gradient(135deg, #e3e7ec 0%, #8e96a3 35%, #f4f6f9 60%, #8a929e 100%) 1;
+  border-radius: 2px;
+  background: var(--navy-deep);
+  color: var(--silver-light);
+  font: 600 12.5px var(--sans);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow:
+    0 1px 0 rgb(255 255 255 / 0.5) inset,
+    0 4px 12px -4px rgb(0 0 0 / 0.6);
 }
-.button--primary {
-  color: var(--accent-contrast);
-  background: var(--accent);
-  border-color: var(--accent);
+.goldbtn:hover {
+  background: #1a2c4c;
+  color: var(--silver-bright);
 }
-.button--primary:hover {
-  filter: brightness(1.08);
+
+/* An underlined serif text button (Back to notes, Archived notes). */
+.quiet {
+  border: 0;
+  background: transparent;
+  padding: 6px 4px;
+  font: italic 500 17px var(--serif);
+  color: var(--on-board-muted);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  text-decoration-color: rgb(174 182 194 / 0.6);
 }
-.button--danger {
-  color: #ffffff;
-  background: var(--danger-solid);
-  border-color: var(--danger-solid);
+.quiet:hover {
+  color: var(--cream);
+  text-decoration-color: var(--silver-light);
 }
-.button--danger:hover {
-  filter: brightness(1.08);
+
+/* --- Controls on paper ------------------------------------------------------------------- */
+
+/* Square icon button; the stroke takes the silver gradient defined once in App.vue. */
+.ico {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 2px;
+  background: transparent;
+  color: var(--ink-muted);
+  cursor: pointer;
 }
-.button--small {
-  padding: 0.3rem 0.7rem;
-  font-size: 0.85rem;
+.ico svg {
+  stroke: url(#lxGold);
+}
+.ico:hover {
+  background: rgb(110 118 130 / 0.12);
+  color: #3f4650;
+}
+.ico:hover svg {
+  stroke: currentColor;
+}
+.ico--danger:hover {
+  background: rgb(138 43 31 / 0.1);
+  color: var(--danger);
+}
+.ico:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Text button on paper; `--primary` is the navy main action, `--danger` the destructive one. */
+.sb {
+  height: 36px;
+  padding: 0 16px;
+  border-radius: 2px;
+  border: 1px solid rgb(110 118 130 / 0.45);
+  background: transparent;
+  color: var(--ink);
+  font: 500 12px var(--sans);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.sb:hover {
+  background: rgb(110 118 130 / 0.1);
+}
+.sb--primary {
+  background: var(--navy);
+  border-color: var(--navy);
+  color: var(--silver-light);
+  font-weight: 600;
+}
+.sb--primary:hover {
+  background: var(--navy-hover);
+}
+.sb--danger {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #fdf3ef;
+  font-weight: 600;
+}
+.sb--danger:hover {
+  background: #a1372a;
+}
+.sb:disabled,
+.sb:disabled:hover {
+  background: rgb(60 66 76 / 0.04);
+  border-color: rgb(110 118 130 / 0.22);
+  color: rgb(80 86 96 / 0.6);
+  text-shadow:
+    0 1px 0 rgb(255 255 255 / 0.85),
+    0 -1px 0 rgb(60 66 76 / 0.18);
+  box-shadow:
+    inset 0 1px 2px rgb(60 66 76 / 0.28),
+    inset 0 -1px 0 rgb(255 255 255 / 0.6),
+    0 1px 0 rgb(255 255 255 / 0.8);
+  cursor: default;
+}
+
+/* Priority pick in a form. */
+.dp {
+  height: 32px;
+  padding: 0 11px;
+  border-radius: 2px;
+  border: 1px solid rgb(110 118 130 / 0.3);
+  background: rgb(255 255 255 / 0.5);
+  font: 600 10.5px var(--sans);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+.dp--high {
+  color: var(--high);
+}
+.dp--medium {
+  color: var(--medium);
+}
+.dp--low {
+  color: var(--low);
+}
+.dp[aria-pressed="true"] {
+  background: #fffdf8;
+  border-color: currentColor;
+}
+
+/* A text field drawn as a line on paper. */
+.line-field {
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid rgb(110 118 130 / 0.35);
+  border-radius: 3px 3px 0 0;
+  background: rgb(255 255 255 / 0.45);
+  padding: 6px 8px;
+  outline: none;
+  color: var(--ink-body);
+  font: 400 15px/1.6 var(--sans);
+}
+.line-field:focus {
+  background: rgb(255 255 255 / 0.8);
+  border-bottom-color: #6b7380;
+}
+.line-field::placeholder {
+  color: #6f6858;
+  font-style: italic;
+}
+.line-field[aria-invalid="true"] {
+  border-bottom: 2px solid var(--danger);
+}
+.line-field--title {
+  font: 600 22px/1.2 var(--serif);
+  color: var(--ink);
+}
+textarea.line-field {
+  resize: vertical;
+}
+
+.field-error {
+  margin: 0;
+  font: 500 13px var(--sans);
+  color: var(--danger);
+}
+.field-hint {
+  margin: 0;
+  font: 400 13px var(--sans);
+  color: var(--ink-muted);
+}
+
+/* An embossed divider above the actions of a sheet. */
+.emboss {
+  border-top: 1px solid rgb(60 66 76 / 0.32);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.8);
+}
+
+/* A message inside a sheet (errors, conflicts, archived notice). */
+.sheet-notice {
+  margin: 0;
+  padding: 10px 12px;
+  border-left: 3px solid var(--ink-muted);
+  background: rgb(255 255 255 / 0.45);
+  font: 400 14px/1.5 var(--sans);
+  color: var(--ink-body);
+}
+.sheet-notice--error {
+  border-left-color: var(--danger);
+  color: var(--danger);
+}
+
+/* Menu entry in the account menu. */
+.menuitem {
+  height: 44px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--ink);
+  font: 500 13px var(--sans);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-align: left;
+  cursor: pointer;
+}
+.menuitem:hover,
+.menuitem:focus-visible {
+  background: rgb(110 118 130 / 0.12);
+  outline: none;
 }
 
 .sr-only {
@@ -148,5 +552,6 @@ a {
 @media (prefers-reduced-motion: reduce) {
   * {
     transition: none !important;
+    scroll-behavior: auto !important;
   }
 }

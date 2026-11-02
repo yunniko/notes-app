@@ -29,12 +29,12 @@ function onCancel(event: Event): void {
 </script>
 
 <template>
-  <dialog ref="dialog" class="dialog" aria-labelledby="confirm-title" aria-describedby="confirm-body" @cancel="onCancel">
+  <dialog ref="dialog" class="dialog sheet paper" aria-labelledby="confirm-title" aria-describedby="confirm-body" @cancel="onCancel">
     <h2 id="confirm-title" class="dialog__title">{{ title }}</h2>
     <div id="confirm-body" class="dialog__body"><slot /></div>
     <div class="dialog__actions">
-      <button type="button" class="button" :disabled="busy" autofocus @click="emit('cancel')">Cancel</button>
-      <button type="button" class="button button--danger" :disabled="busy" @click="emit('confirm')">
+      <button type="button" class="sb" :disabled="busy" autofocus @click="emit('cancel')">Cancel</button>
+      <button type="button" class="sb sb--danger" :disabled="busy" @click="emit('confirm')">
         {{ busy ? "Working…" : confirmLabel }}
       </button>
     </div>
@@ -44,22 +44,27 @@ function onCancel(event: Event): void {
 <style scoped>
 .dialog {
   width: min(28rem, calc(100vw - 2rem));
-  padding: 1.25rem 1.4rem;
-  color: var(--text);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
+  padding: 30px 30px 24px;
+  gap: 12px;
+}
+/* `.sheet` sets display and position; a dialog must stay hidden while closed and fixed while open. */
+.dialog {
+  position: fixed;
+}
+.dialog:not([open]) {
+  display: none;
 }
 .dialog::backdrop {
-  background: rgb(0 0 0 / 0.45);
+  background: rgb(4 8 16 / 0.7);
 }
 .dialog__title {
-  margin: 0 0 0.6rem;
-  font-size: 1.15rem;
+  margin: 0;
+  font: 600 26px/1.15 var(--serif);
+  color: var(--ink);
 }
 .dialog__body {
-  color: var(--text-muted);
+  font: 400 15px/1.6 var(--sans);
+  color: var(--ink-body);
   overflow-wrap: anywhere;
 }
 .dialog__body :deep(p) {
@@ -69,7 +74,7 @@ function onCancel(event: Event): void {
   display: flex;
   justify-content: flex-end;
   flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-top: 1.25rem;
+  gap: 8px;
+  margin-top: 10px;
 }
 </style>

@@ -28,7 +28,7 @@ describe("ConfirmDialog", () => {
   it("asks the parent to confirm or cancel", async () => {
     const wrapper = mountDialog(true);
 
-    await wrapper.get("button.button--danger").trigger("click");
+    await wrapper.get("button.sb--danger").trigger("click");
     await wrapper.findAll("button")[0]!.trigger("click");
     await wrapper.find("dialog").trigger("cancel"); // Escape
 
@@ -43,7 +43,7 @@ describe("ConfirmDialog", () => {
     await wrapper.find("dialog").trigger("cancel");
 
     expect(wrapper.emitted("cancel")).toBeUndefined();
-    expect(wrapper.get("button.button--danger").text()).toBe("Working…");
+    expect(wrapper.get("button.sb--danger").text()).toBe("Working…");
     wrapper.unmount();
   });
 });

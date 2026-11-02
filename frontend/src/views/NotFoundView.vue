@@ -1,14 +1,19 @@
 <template>
-  <section class="not-found">
-    <h1>Page not found</h1>
-    <p>There is nothing at this address.</p>
-    <RouterLink class="button button--primary" :to="{ name: 'notes' }">Go to your notes</RouterLink>
+  <section class="not-found board-box" aria-labelledby="not-found-heading">
+    <h1 id="not-found-heading" class="display">Page not found</h1>
+    <p class="board-box__message">There is nothing at this address.</p>
+    <div class="board-box__actions">
+      <RouterLink class="chip" :to="{ name: 'notes' }">Go to your notes</RouterLink>
+    </div>
   </section>
 </template>
 
 <style scoped>
 .not-found {
-  text-align: center;
-  padding: 3rem 1rem;
+  max-width: 40rem;
+  margin: 24px auto 0;
+}
+.not-found .display {
+  margin-bottom: 12px;
 }
 </style>

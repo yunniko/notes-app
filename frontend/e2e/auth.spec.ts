@@ -20,8 +20,9 @@ test.describe("accounts", () => {
 
     await expect(page).toHaveURL("/");
     await expect(page.getByText("No notes yet.")).toBeVisible();
-    await expect(page.getByRole("banner")).toContainText(username);
+    await expect(page.getByRole("banner").getByRole("button", { name: `Account: ${username}` })).toBeVisible();
 
+    await page.getByRole("button", { name: /^Account: / }).click();
     await page.getByRole("button", { name: "Log out" }).click();
     await expect(page).toHaveURL("/login");
     await expect(page.getByText("You are logged out.")).toBeVisible();

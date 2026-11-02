@@ -1,96 +1,50 @@
 <script setup lang="ts">
-import { ref } from "vue";
-import { useRouter } from "vue-router";
+import AppHeader from "@/components/AppHeader.vue";
 import { useFlash } from "@/composables/useFlash";
-import { useSession } from "@/composables/useSession";
 
 const flash = useFlash();
-const session = useSession();
-const router = useRouter();
-const loggingOut = ref(false);
-
-async function logOut(): Promise<void> {
-  loggingOut.value = true;
-  try {
-    await session.logOut();
-  } catch {
-    // The server may be unreachable; the local session is cleared either way.
-  } finally {
-    loggingOut.value = false;
-  }
-  await router.push({ name: "login" });
-  flash.show("You are logged out.");
-}
 </script>
 
 <template>
-  <a class="skip-link" href="#main">Skip to content</a>
-  <header class="app-header">
-    <div class="app-header__inner">
-      <RouterLink class="brand" :to="{ name: 'notes' }">
-        <span aria-hidden="true">🗒</span>
-        Notes
-      </RouterLink>
-      <div v-if="session.user.value" class="account">
-        <span class="account__name">
-          <span class="sr-only">Logged in as</span>
-          <span aria-hidden="true">👤</span>
-          {{ session.user.value.username }}
-        </span>
-        <button type="button" class="button button--small" :disabled="loggingOut" @click="logOut">Log out</button>
+  <div class="board">
+    <!-- The silver gradient every icon stroke on paper refers to (`stroke: url(#lxGold)`). -->
+    <svg class="defs" width="0" height="0" aria-hidden="true" focusable="false">
+      <defs>
+        <linearGradient id="lxGold" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#8E96A3" />
+          <stop offset="0.45" stop-color="#4E5560" />
+          <stop offset="0.7" stop-color="#7D8592" />
+          <stop offset="1" stop-color="#3F4650" />
+        </linearGradient>
+      </defs>
+    </svg>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <AppHeader />
+    <main id="main" class="app-main">
+      <div class="flash-region" role="status" aria-live="polite">
+        <p v-if="flash.message.value" class="flash paper">
+          {{ flash.message.value }}
+          <button type="button" class="flash__close" aria-label="Dismiss" @click="flash.dismiss">×</button>
+        </p>
       </div>
-    </div>
-  </header>
-  <main id="main" class="app-main">
-    <div class="flash-region" role="status" aria-live="polite">
-      <p v-if="flash.message.value" class="flash">
-        {{ flash.message.value }}
-        <button type="button" class="flash__close" aria-label="Dismiss" @click="flash.dismiss">×</button>
-      </p>
-    </div>
-    <RouterView />
-  </main>
+      <RouterView />
+    </main>
+  </div>
 </template>
 
 <style scoped>
-.app-header {
-  border-bottom: 1px solid var(--border);
-  background: var(--surface);
-}
-.app-header__inner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  max-width: var(--content-width);
-  margin: 0 auto;
-  padding: 0.9rem 1.25rem;
-}
-.brand {
-  display: inline-flex;
-  gap: 0.5rem;
-  font-weight: 700;
-  font-size: 1.15rem;
-  color: var(--text);
-  text-decoration: none;
-}
-.account {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  min-width: 0;
-}
-.account__name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--text-muted);
-  font-size: 0.9rem;
+.defs {
+  position: absolute;
 }
 .app-main {
   max-width: var(--content-width);
   margin: 0 auto;
-  padding: 1.5rem 1.25rem 3rem;
+  padding: 28px 32px 72px;
+}
+@media (max-width: 640px) {
+  .app-main {
+    padding: 20px 16px 56px;
+  }
 }
 .flash-region:empty {
   display: none;
@@ -99,20 +53,31 @@ async function logOut(): Promise<void> {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin: 0 0 1rem;
-  padding: 0.7rem 1rem;
-  border-radius: var(--radius-sm);
-  background: var(--success-bg);
-  color: var(--success);
-  border: 1px solid var(--success);
+  gap: 12px;
+  max-width: 40rem;
+  margin: 0 auto 24px;
+  padding: 10px 10px 10px 18px;
+  background-color: var(--paper-menu);
+  color: var(--ink);
+  border: 1px solid rgb(174 182 194 / 0.6);
+  border-radius: 2px;
+  box-shadow: 0 12px 30px -14px rgb(0 0 0 / 0.7);
+  font: italic 500 18px var(--serif);
 }
 .flash__close {
+  flex: none;
+  width: 32px;
+  height: 32px;
   border: 0;
+  border-radius: 2px;
   background: none;
-  color: inherit;
-  font-size: 1.25rem;
+  color: var(--ink-muted);
+  font-size: 1.4rem;
   line-height: 1;
   cursor: pointer;
+}
+.flash__close:hover {
+  background: rgb(110 118 130 / 0.12);
 }
 .skip-link {
   position: absolute;
@@ -123,6 +88,7 @@ async function logOut(): Promise<void> {
   top: 1rem;
   z-index: 10;
   padding: 0.5rem 1rem;
-  background: var(--surface);
+  background: var(--cream);
+  color: var(--navy);
 }
 </style>

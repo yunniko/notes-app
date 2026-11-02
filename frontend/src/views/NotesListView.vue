@@ -5,7 +5,6 @@ import { ApiError, notesApi } from "@/api/notes";
 import ConfirmDialog from "@/components/ConfirmDialog.vue";
 import NoteCard from "@/components/NoteCard.vue";
 import PriorityFilter from "@/components/PriorityFilter.vue";
-import SearchBox from "@/components/SearchBox.vue";
 import { useListMemory } from "@/composables/useListMemory";
 import { useNoteActions } from "@/composables/useNoteActions";
 import type { Note } from "@/domain/note";
@@ -22,7 +21,7 @@ type State = { status: "loading" } | { status: "error"; message: string } | { st
 const state = ref<State>({ status: "loading" });
 const listRoute = computed(() => (props.archived ? "archive" : "notes"));
 
-/** Filter and search live in the URL, so they survive reload and can be bookmarked or shared. */
+/** Filter and search live in the URL, so they survive reload and can be bookmarked or shared. The search box is in the header. */
 const filter = computed<Priority[]>({
   get: () => parsePriorityFilter(route.query.priority),
   set: (priorities) => router.replace({ query: { ...route.query, priority: serializePriorityFilter(priorities) } }),
@@ -86,7 +85,6 @@ const { busyId, error: actionError, pendingDelete } = actions;
   <section class="list-view" aria-labelledby="list-heading">
     <div class="toolbar">
       <h1 id="list-heading">{{ archived ? "Archive" : "Notes" }}</h1>
-      <RouterLink class="button button--primary" :to="{ name: 'note-new' }">New note</RouterLink>
     </div>
 
     <nav class="tabs" aria-label="Which notes">
@@ -97,7 +95,6 @@ const { busyId, error: actionError, pendingDelete } = actions;
     </nav>
 
     <div class="filters">
-      <SearchBox v-model="search" />
       <PriorityFilter v-model="filter" />
     </div>
 
@@ -175,9 +172,6 @@ const { busyId, error: actionError, pendingDelete } = actions;
   flex-wrap: wrap;
   align-items: center;
   gap: 0.75rem 1.25rem;
-}
-.filters .search {
-  flex: 1 1 16rem;
 }
 .empty__actions {
   display: flex;

@@ -84,13 +84,13 @@ async function onSubmit(): Promise<void> {
 </script>
 
 <template>
-  <section class="auth" aria-labelledby="auth-heading">
+  <section class="auth sheet paper" aria-labelledby="auth-heading">
     <h1 id="auth-heading">{{ isRegister ? "Create account" : "Log in" }}</h1>
     <p class="auth__lead">
       {{ isRegister ? "Your notes are private to your account." : "Log in to see your notes." }}
     </p>
 
-    <p v-if="formError" class="notice notice--error" role="alert">{{ formError }}</p>
+    <p v-if="formError" class="sheet-notice sheet-notice--error" role="alert">{{ formError }}</p>
 
     <form class="form" novalidate @submit.prevent="onSubmit">
       <div class="field">
@@ -99,6 +99,7 @@ async function onSubmit(): Promise<void> {
           id="auth-username"
           ref="username"
           v-model="form.username"
+          class="line-field"
           type="text"
           autocomplete="username"
           autocapitalize="none"
@@ -107,8 +108,8 @@ async function onSubmit(): Promise<void> {
           :aria-invalid="!!errors.username"
           :aria-describedby="errors.username ? 'auth-username-error' : isRegister ? 'auth-username-hint' : undefined"
         />
-        <p v-if="errors.username" id="auth-username-error" class="field__error" role="alert">{{ errors.username }}</p>
-        <p v-else-if="isRegister" id="auth-username-hint" class="field__hint">3–32 letters, digits, dots, dashes or underscores.</p>
+        <p v-if="errors.username" id="auth-username-error" class="field-error" role="alert">{{ errors.username }}</p>
+        <p v-else-if="isRegister" id="auth-username-hint" class="field-hint">3–32 letters, digits, dots, dashes or underscores.</p>
       </div>
 
       <div class="field">
@@ -117,18 +118,19 @@ async function onSubmit(): Promise<void> {
           id="auth-password"
           ref="password"
           v-model="form.password"
+          class="line-field"
           :type="showPassword ? 'text' : 'password'"
           :autocomplete="isRegister ? 'new-password' : 'current-password'"
           required
           :aria-invalid="!!errors.password"
           :aria-describedby="errors.password ? 'auth-password-error' : isRegister ? 'auth-password-hint' : undefined"
         />
-        <p v-if="errors.password" id="auth-password-error" class="field__error" role="alert">{{ errors.password }}</p>
-        <p v-else-if="isRegister" id="auth-password-hint" class="field__hint">At least {{ PASSWORD_MIN_LENGTH }} characters.</p>
+        <p v-if="errors.password" id="auth-password-error" class="field-error" role="alert">{{ errors.password }}</p>
+        <p v-else-if="isRegister" id="auth-password-hint" class="field-hint">At least {{ PASSWORD_MIN_LENGTH }} characters.</p>
         <label class="checkbox"><input v-model="showPassword" type="checkbox" /> Show password</label>
       </div>
 
-      <button type="submit" class="button button--primary" :disabled="submitting">
+      <button type="submit" class="sb sb--primary auth__submit" :disabled="submitting">
         {{ submitting ? "Please wait…" : isRegister ? "Create account" : "Log in" }}
       </button>
     </form>
@@ -148,74 +150,49 @@ async function onSubmit(): Promise<void> {
 
 <style scoped>
 .auth {
-  max-width: 24rem;
-  margin: 1rem auto 0;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
+  max-width: 26rem;
+  margin: 24px auto 0;
+  padding: 40px 36px 32px;
+  gap: 18px;
 }
 .auth h1 {
   margin: 0;
+  font: 600 34px/1.1 var(--serif);
+  color: var(--ink);
 }
 .auth__lead,
 .auth__switch {
   margin: 0;
-  color: var(--text-muted);
+  font: italic 500 17px var(--serif);
+  color: var(--ink-soft);
+}
+.auth__switch a {
+  color: var(--navy);
 }
 .form {
   display: flex;
   flex-direction: column;
-  gap: 1.1rem;
+  gap: 18px;
 }
 .field {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: 6px;
 }
-.field > label {
-  font-weight: 600;
-}
-.field input[type="text"],
-.field input[type="password"] {
-  width: 100%;
-  padding: 0.6rem 0.75rem;
-  font: inherit;
-  color: var(--text);
-  background: var(--surface);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-sm);
-}
-.field [aria-invalid="true"] {
-  border-color: var(--danger);
-}
-.field__error,
-.field__hint {
-  margin: 0;
-  font-size: 0.85rem;
-}
-.field__error {
-  color: var(--danger);
-}
-.field__hint {
-  color: var(--text-muted);
+.field > label:first-child {
+  font: 600 11px var(--sans);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
 }
 .checkbox {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
-  font-size: 0.9rem;
-  font-weight: 400;
-  color: var(--text-muted);
+  gap: 8px;
+  font: 400 14px var(--sans);
+  color: var(--ink-muted);
 }
-.notice {
-  margin: 0;
-  padding: 0.9rem 1rem;
-  border-radius: var(--radius-sm);
-  border: 1px solid;
-}
-.notice--error {
-  color: var(--danger);
-  border-color: var(--danger);
-  background: var(--danger-bg);
+.auth__submit {
+  height: 44px;
 }
 </style>
