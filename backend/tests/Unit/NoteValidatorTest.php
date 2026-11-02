@@ -124,6 +124,27 @@ final class NoteValidatorTest extends TestCase
         }
     }
 
+    public function testSearchTermsSplitOnWhitespaceAndDeduplicate(): void
+    {
+        self::assertSame([], $this->validator->searchTerms(null));
+        self::assertSame([], $this->validator->searchTerms(" \t\n"));
+        self::assertSame(['budget', 'Q3'], $this->validator->searchTerms("  budget\u{00A0}Q3 budget "));
+        self::assertSame(['50%', 'a_b'], $this->validator->searchTerms('50% a_b'), 'wildcards are kept as text');
+        self::assertSame([str_repeat('ž', 100)], $this->validator->searchTerms(str_repeat('ž', 100)), 'the limit counts characters');
+    }
+
+    public function testSearchRejectsArraysAndOverlongText(): void
+    {
+        foreach ([['x'], str_repeat('a', 101)] as $raw) {
+            try {
+                $this->validator->searchTerms($raw);
+                self::fail('Expected ValidationFailed.');
+            } catch (ValidationFailed $e) {
+                self::assertArrayHasKey('q', $e->errors);
+            }
+        }
+    }
+
     public function testArchivedFilterAcceptsOnlyTrueOrFalse(): void
     {
         self::assertFalse($this->validator->archivedFilter(null));

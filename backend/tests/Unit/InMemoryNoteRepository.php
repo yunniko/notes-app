@@ -8,6 +8,7 @@ use App\Domain\Exception\NoteNotFound;
 use App\Domain\Exception\VersionConflict;
 use App\Domain\Note;
 use App\Domain\NoteDraft;
+use App\Domain\NoteQuery;
 use App\Domain\NoteRepository;
 use DateTimeImmutable;
 
@@ -21,15 +22,21 @@ final class InMemoryNoteRepository implements NoteRepository
     private int $nextId = 1;
     private int $clock = 0;
 
-    public function findAll(int $ownerId, array $priorities = [], bool $archived = false): array
+    public function findAll(int $ownerId, NoteQuery $query = new NoteQuery()): array
     {
+        // Case-insensitive only; accent folding is MariaDB's collation, covered by the integration tests.
+        $matches = static fn(Note $n): bool => array_all(
+            $query->terms,
+            static fn(string $t): bool => mb_stripos($n->title, $t) !== false || mb_stripos($n->content, $t) !== false,
+        );
         $notes = array_filter(
             $this->notes,
             fn(Note $n): bool => $this->owners[$n->id] === $ownerId
-                && ($n->archivedAt !== null) === $archived
-                && ($priorities === [] || in_array($n->priority, $priorities, true)),
+                && ($n->archivedAt !== null) === $query->archived
+                && ($query->priorities === [] || in_array($n->priority, $query->priorities, true))
+                && $matches($n),
         );
-        usort($notes, static fn(Note $a, Note $b): int => $archived
+        usort($notes, static fn(Note $a, Note $b): int => $query->archived
             ? [$b->archivedAt, $b->id] <=> [$a->archivedAt, $a->id]
             : [$b->updatedAt, $b->id] <=> [$a->updatedAt, $a->id]);
 

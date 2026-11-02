@@ -40,10 +40,10 @@ final class NoteServiceTest extends TestCase
         $c = $this->service->create(self::OWNER, ['title' => 'C', 'priority' => 'high']);
         $this->service->update(self::OWNER, $a->id, ['title' => 'A2', 'priority' => 'high', 'version' => 1]);
 
-        self::assertSame(['A2', 'C'], $this->titles($this->service->list(self::OWNER, 'high')));
-        self::assertSame(['A2', 'C', 'B'], $this->titles($this->service->list(self::OWNER, null)));
-        self::assertSame(['A2', 'C', 'B'], $this->titles($this->service->list(self::OWNER, 'high,low')));
-        self::assertSame($c->id, $this->service->list(self::OWNER, 'high')[1]->id);
+        self::assertSame(['A2', 'C'], $this->titles($this->service->list(self::OWNER, ['priority' => 'high'])));
+        self::assertSame(['A2', 'C', 'B'], $this->titles($this->service->list(self::OWNER)));
+        self::assertSame(['A2', 'C', 'B'], $this->titles($this->service->list(self::OWNER, ['priority' => 'high,low'])));
+        self::assertSame($c->id, $this->service->list(self::OWNER, ['priority' => 'high'])[1]->id);
     }
 
     public function testUpdateReplacesFieldsAndBumpsVersion(): void
@@ -94,8 +94,8 @@ final class NoteServiceTest extends TestCase
         $mine = $this->service->create(self::OWNER, ['title' => 'Mine', 'priority' => 'low']);
         $this->service->create(2, ['title' => 'Theirs', 'priority' => 'low']);
 
-        self::assertSame(['Mine'], $this->titles($this->service->list(self::OWNER, null)));
-        self::assertSame(['Theirs'], $this->titles($this->service->list(2, null)));
+        self::assertSame(['Mine'], $this->titles($this->service->list(self::OWNER)));
+        self::assertSame(['Theirs'], $this->titles($this->service->list(2)));
         $this->expectException(NoteNotFound::class);
         $this->service->update(2, $mine->id, ['title' => 'Taken over', 'priority' => 'low', 'version' => 1]);
     }
@@ -109,16 +109,16 @@ final class NoteServiceTest extends TestCase
         self::assertNotNull($archived->archivedAt);
         self::assertSame(2, $archived->version);
         self::assertEquals($old->updatedAt, $archived->updatedAt);
-        self::assertSame(['New'], $this->titles($this->service->list(self::OWNER, null)));
-        self::assertSame(['Old'], $this->titles($this->service->list(self::OWNER, 'low', 'true')));
-        self::assertSame([], $this->titles($this->service->list(self::OWNER, 'high', 'true')));
+        self::assertSame(['New'], $this->titles($this->service->list(self::OWNER)));
+        self::assertSame(['Old'], $this->titles($this->service->list(self::OWNER, ['priority' => 'low', 'archived' => 'true'])));
+        self::assertSame([], $this->titles($this->service->list(self::OWNER, ['priority' => 'high', 'archived' => 'true'])));
 
         self::assertSame(2, $this->service->archive(self::OWNER, $old->id)->version, 'archiving twice changes nothing');
 
         $restored = $this->service->restore(self::OWNER, $old->id);
         self::assertNull($restored->archivedAt);
         self::assertSame(3, $restored->version);
-        self::assertSame(['New', 'Old'], $this->titles($this->service->list(self::OWNER, null, 'false')));
+        self::assertSame(['New', 'Old'], $this->titles($this->service->list(self::OWNER, ['archived' => 'false'])));
     }
 
     public function testArchivedListIsMostRecentlyArchivedFirst(): void
@@ -128,17 +128,33 @@ final class NoteServiceTest extends TestCase
         $this->service->archive(self::OWNER, $b->id);
         $this->service->archive(self::OWNER, $a->id);
 
-        self::assertSame(['A', 'B'], $this->titles($this->service->list(self::OWNER, null, 'true')));
+        self::assertSame(['A', 'B'], $this->titles($this->service->list(self::OWNER, ['archived' => 'true'])));
     }
 
-    public function testListReportsBothBadFiltersTogether(): void
+    public function testListReportsEveryBadFilterTogether(): void
     {
         try {
-            $this->service->list(self::OWNER, 'urgent', 'maybe');
+            $this->service->list(self::OWNER, ['priority' => 'urgent', 'archived' => 'maybe', 'q' => ['x']]);
             self::fail('Expected ValidationFailed.');
         } catch (ValidationFailed $e) {
-            self::assertSame(['priority', 'archived'], array_keys($e->errors));
+            self::assertSame(['priority', 'archived', 'q'], array_keys($e->errors));
         }
+    }
+
+    public function testSearchNeedsEveryTermInTitleOrContentAndCombinesWithFilters(): void
+    {
+        $this->service->create(self::OWNER, ['title' => 'Budget', 'content' => 'Review before the meeting', 'priority' => 'high']);
+        $this->service->create(self::OWNER, ['title' => 'Meeting notes', 'content' => 'No numbers yet', 'priority' => 'low']);
+        $old = $this->service->create(self::OWNER, ['title' => 'Old budget', 'priority' => 'high']);
+        $this->service->archive(self::OWNER, $old->id);
+        $this->service->create(2, ['title' => 'Budget of someone else', 'priority' => 'high']);
+
+        self::assertSame(['Meeting notes', 'Budget'], $this->titles($this->service->list(self::OWNER, ['q' => 'MEETING'])));
+        self::assertSame(['Budget'], $this->titles($this->service->list(self::OWNER, ['q' => '  meeting   budget '])));
+        self::assertSame(['Meeting notes'], $this->titles($this->service->list(self::OWNER, ['q' => 'meeting', 'priority' => 'low'])));
+        self::assertSame(['Old budget'], $this->titles($this->service->list(self::OWNER, ['q' => 'budget', 'archived' => 'true'])));
+        self::assertSame([], $this->titles($this->service->list(self::OWNER, ['q' => 'holiday'])));
+        self::assertCount(2, $this->service->list(self::OWNER, ['q' => '   ']), 'a blank search is no search');
     }
 
     public function testDeleteIsPermanentAndScopedToTheOwner(): void

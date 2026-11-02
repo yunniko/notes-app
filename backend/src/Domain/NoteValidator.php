@@ -14,6 +14,7 @@ final class NoteValidator
 {
     public const int TITLE_MAX_LENGTH = 200;
     public const int CONTENT_MAX_LENGTH = 20_000;
+    public const int SEARCH_MAX_LENGTH = 100;
 
     /** @throws ValidationFailed */
     public function draft(mixed $input): NoteDraft
@@ -107,6 +108,65 @@ final class NoteValidator
             'true' => true,
             default => throw new ValidationFailed(['archived' => 'Archived must be "true" or "false".']),
         };
+    }
+
+    /**
+     * Parses the `q` search: words separated by whitespace, each of which must occur in the note.
+     * Blank means no search.
+     *
+     * @return list<string>
+     *
+     * @throws ValidationFailed
+     */
+    public function searchTerms(mixed $raw): array
+    {
+        if ($raw === null) {
+            return [];
+        }
+        if (!is_string($raw)) {
+            throw new ValidationFailed(['q' => 'Search must be text.']);
+        }
+        $raw = trim($raw);
+        if (mb_strlen($raw) > self::SEARCH_MAX_LENGTH) {
+            throw new ValidationFailed(['q' => sprintf('Search must be at most %d characters.', self::SEARCH_MAX_LENGTH)]);
+        }
+
+        return $raw === '' ? [] : array_values(array_unique(preg_split('/\s+/u', $raw) ?: []));
+    }
+
+    /**
+     * Parses the list endpoint's query string, reporting every invalid parameter at once.
+     *
+     * @param array<array-key, mixed> $params
+     *
+     * @throws ValidationFailed
+     */
+    public function listQuery(array $params): NoteQuery
+    {
+        $errors = [];
+        $priorities = [];
+        $archived = false;
+        $terms = [];
+        try {
+            $priorities = $this->priorityFilter($params['priority'] ?? null);
+        } catch (ValidationFailed $e) {
+            $errors += $e->errors;
+        }
+        try {
+            $archived = $this->archivedFilter($params['archived'] ?? null);
+        } catch (ValidationFailed $e) {
+            $errors += $e->errors;
+        }
+        try {
+            $terms = $this->searchTerms($params['q'] ?? null);
+        } catch (ValidationFailed $e) {
+            $errors += $e->errors;
+        }
+        if ($errors !== []) {
+            throw new ValidationFailed($errors);
+        }
+
+        return new NoteQuery($priorities, $archived, $terms);
     }
 
     /**

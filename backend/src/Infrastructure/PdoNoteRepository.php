@@ -8,6 +8,7 @@ use App\Domain\Exception\NoteNotFound;
 use App\Domain\Exception\VersionConflict;
 use App\Domain\Note;
 use App\Domain\NoteDraft;
+use App\Domain\NoteQuery;
 use App\Domain\NoteRepository;
 use App\Domain\Priority;
 use PDO;
@@ -22,16 +23,23 @@ final readonly class PdoNoteRepository implements NoteRepository
 
     public function __construct(private PDO $pdo) {}
 
-    public function findAll(int $ownerId, array $priorities = [], bool $archived = false): array
+    public function findAll(int $ownerId, NoteQuery $query = new NoteQuery()): array
     {
         $sql = 'SELECT ' . self::COLUMNS . ' FROM notes WHERE user_id = ?'
-            . ($archived ? ' AND archived_at IS NOT NULL' : ' AND archived_at IS NULL');
+            . ($query->archived ? ' AND archived_at IS NOT NULL' : ' AND archived_at IS NULL');
         $params = [$ownerId];
-        if ($priorities !== []) {
-            $sql .= ' AND priority IN (' . implode(', ', array_fill(0, count($priorities), '?')) . ')';
-            array_push($params, ...array_map(static fn(Priority $p): string => $p->value, $priorities));
+        if ($query->priorities !== []) {
+            $sql .= ' AND priority IN (' . implode(', ', array_fill(0, count($query->priorities), '?')) . ')';
+            array_push($params, ...array_map(static fn(Priority $p): string => $p->value, $query->priorities));
         }
-        $sql .= $archived ? ' ORDER BY archived_at DESC, id DESC' : ' ORDER BY updated_at DESC, id DESC';
+        // Substring match per term. The table collation (utf8mb4_uca1400_ai_ci) makes LIKE ignore case
+        // and accents. A scan of one user's rows is cheap at this size; see D014 for why not FULLTEXT.
+        foreach ($query->terms as $term) {
+            $sql .= " AND (title LIKE ? ESCAPE '!' OR content LIKE ? ESCAPE '!')";
+            $pattern = '%' . strtr($term, ['!' => '!!', '%' => '!%', '_' => '!_']) . '%';
+            array_push($params, $pattern, $pattern);
+        }
+        $sql .= $query->archived ? ' ORDER BY archived_at DESC, id DESC' : ' ORDER BY updated_at DESC, id DESC';
 
         $statement = $this->pdo->prepare($sql);
         $statement->execute($params);

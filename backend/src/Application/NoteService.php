@@ -23,28 +23,15 @@ final readonly class NoteService
     ) {}
 
     /**
+     * @param array<array-key, mixed> $params the raw query string: `priority`, `archived`, `q`
+     *
      * @return list<Note>
      *
      * @throws ValidationFailed
      */
-    public function list(int $ownerId, mixed $priorityFilter, mixed $archivedFilter = null): array
+    public function list(int $ownerId, array $params = []): array
     {
-        $errors = [];
-        try {
-            $priorities = $this->validator->priorityFilter($priorityFilter);
-        } catch (ValidationFailed $e) {
-            $errors = $e->errors;
-        }
-        try {
-            $archived = $this->validator->archivedFilter($archivedFilter);
-        } catch (ValidationFailed $e) {
-            $errors += $e->errors;
-        }
-        if ($errors !== [] || !isset($priorities, $archived)) {
-            throw new ValidationFailed($errors ?: ['query' => 'Invalid filter.']);
-        }
-
-        return $this->notes->findAll($ownerId, $priorities, $archived);
+        return $this->notes->findAll($ownerId, $this->validator->listQuery($params));
     }
 
     /** @throws NoteNotFound */

@@ -15,3 +15,4 @@ One file per significant decision; append-only (a reversal is a new file).
 - [D011](D011-server-side-sessions.md) — Server-side sessions in an HttpOnly cookie, with a same-origin guard — active
 - [D012](D012-password-hashing-and-throttle.md) — Argon2id at OWASP minimums; ten failed logins lock a username for 15 minutes — active
 - [D013](D013-archive-and-permanent-delete.md) — Archive is a timestamp on the note; delete is permanent behind a confirmation — active
+- [D014](D014-search-with-like.md) — Search is a substring LIKE per word, not a FULLTEXT index — active

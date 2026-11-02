@@ -102,6 +102,37 @@ final class NotesApiTest extends ApiTestCase
         self::assertSame(['medium'], array_column($this->list('?priority=medium,medium'), 'priority'));
     }
 
+    public function testSearchIgnoresCaseAndAccentsAndTreatsWildcardsAsText(): void
+    {
+        $this->request('POST', '/api/notes', ['title' => 'Café list', 'content' => 'Oat milk, ŽLUTÝ cukr', 'priority' => 'low']);
+        $this->request('POST', '/api/notes', ['title' => 'Discount', 'content' => 'Save 50% on file_names', 'priority' => 'high']);
+        $this->request('POST', '/api/notes', ['title' => 'Plain', 'content' => 'Save 500 on filenames', 'priority' => 'high']);
+
+        $search = fn(string $q, string $extra = ''): array => array_column($this->list('?q=' . rawurlencode($q) . $extra), 'title');
+
+        self::assertSame(['Café list'], $search('cafe'));
+        self::assertSame(['Café list'], $search('zluty CUKR'));
+        self::assertSame(['Café list'], $search('oat café'));
+        self::assertSame(['Discount'], $search('50%'), '% is not a wildcard');
+        self::assertSame(['Discount'], $search('file_n'), '_ is not a wildcard');
+        self::assertSame([], $search('cafe save'), 'every term must match');
+        self::assertSame(['Plain', 'Discount'], $search('save', '&priority=high'));
+        self::assertSame([], $search('save', '&archived=true'));
+        self::assertSame(['Plain', 'Discount', 'Café list'], $search('   '));
+
+        $tooLong = $this->request('GET', '/api/notes?q=' . str_repeat('a', 101));
+        self::assertSame(422, $tooLong->getStatusCode());
+        self::assertArrayHasKey('q', (array) $this->json($tooLong)['errors']);
+    }
+
+    public function testSearchNeverReachesAnotherUsersNotes(): void
+    {
+        $this->request('POST', '/api/notes', ['title' => 'Alice private budget', 'priority' => 'low']);
+        $this->register('bob');
+
+        self::assertSame([], $this->list('?q=budget'));
+    }
+
     public function testListShowsMostRecentlyUpdatedFirst(): void
     {
         $first = $this->data($this->request('POST', '/api/notes', ['title' => 'First', 'priority' => 'low']));
