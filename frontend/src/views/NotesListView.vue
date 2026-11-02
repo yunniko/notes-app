@@ -5,7 +5,8 @@ import { ApiError, notesApi } from "@/api/notes";
 import ConfirmDialog from "@/components/ConfirmDialog.vue";
 import NoteCard from "@/components/NoteCard.vue";
 import PriorityFilter from "@/components/PriorityFilter.vue";
-import { useFlash } from "@/composables/useFlash";
+import { useListMemory } from "@/composables/useListMemory";
+import { useNoteActions } from "@/composables/useNoteActions";
 import type { Note } from "@/domain/note";
 import { parsePriorityFilter, serializePriorityFilter, type Priority } from "@/domain/priority";
 
@@ -13,7 +14,7 @@ import { parsePriorityFilter, serializePriorityFilter, type Priority } from "@/d
 const props = defineProps<{ archived: boolean }>();
 const route = useRoute();
 const router = useRouter();
-const flash = useFlash();
+const lists = useListMemory();
 
 type State = { status: "loading" } | { status: "error"; message: string } | { status: "ready"; notes: Note[] };
 const state = ref<State>({ status: "loading" });
@@ -50,52 +51,26 @@ const loadKey = computed(() =>
 );
 watch(loadKey, (key) => key !== null && load(key), { immediate: true });
 
-// --- Actions on a card ---------------------------------------------------------------------
+// So that "back" from a note returns to this tab with its filter and search.
+watch(
+  () => route.fullPath,
+  (path) => route.name === listRoute.value && lists.remember(listRoute.value, path),
+  { immediate: true }
+);
 
-const busyId = ref<number | null>(null);
-const actionError = ref<string | null>(null);
-const pendingDelete = ref<Note | null>(null);
+// --- Actions on a card ---------------------------------------------------------------------
 
 function removeFromList(id: number): void {
   if (state.value.status === "ready") state.value.notes = state.value.notes.filter((n) => n.id !== id);
 }
 
-/** Runs one card action; a note that is already gone elsewhere just leaves the list. */
-async function act(note: Note, action: () => Promise<unknown>, done: string): Promise<boolean> {
-  busyId.value = note.id;
-  actionError.value = null;
-  try {
-    await action();
-    removeFromList(note.id);
-    flash.show(done);
-    return true;
-  } catch (error) {
-    if (error instanceof ApiError && error.status === 404) {
-      removeFromList(note.id);
-      actionError.value = `“${note.title}” no longer exists. It was probably deleted somewhere else.`;
-    } else if (!(error instanceof ApiError && error.status === 401)) {
-      actionError.value = error instanceof ApiError ? error.message : "Something went wrong. Please try again.";
-    }
-    return false;
-  } finally {
-    busyId.value = null;
-  }
-}
-
-function archive(note: Note): void {
-  void act(note, () => notesApi.archive(note.id), "Note archived. Find it under Archived.");
-}
-
-function restore(note: Note): void {
-  void act(note, () => notesApi.restore(note.id), "Note restored.");
-}
-
-async function confirmDelete(): Promise<void> {
-  const note = pendingDelete.value;
-  if (!note) return;
-  await act(note, () => notesApi.delete(note.id), "Note deleted.");
-  pendingDelete.value = null;
-}
+// Archiving or restoring moves the note to the other tab; either way it leaves this one.
+const actions = useNoteActions({
+  changed: (note) => removeFromList(note.id),
+  deleted: (note) => removeFromList(note.id),
+  gone: (note) => removeFromList(note.id),
+});
+const { busyId, error: actionError, pendingDelete } = actions;
 </script>
 
 <template>
@@ -141,9 +116,9 @@ async function confirmDelete(): Promise<void> {
           <NoteCard
             :note="note"
             :busy="busyId === note.id"
-            @archive="archive(note)"
-            @restore="restore(note)"
-            @delete="pendingDelete = note"
+            @archive="actions.archive(note)"
+            @restore="actions.restore(note)"
+            @delete="actions.requestDelete(note)"
           />
         </li>
       </ul>
@@ -154,8 +129,8 @@ async function confirmDelete(): Promise<void> {
       title="Delete this note?"
       confirm-label="Delete permanently"
       :busy="busyId !== null"
-      @confirm="confirmDelete"
-      @cancel="pendingDelete = null"
+      @confirm="actions.confirmDelete"
+      @cancel="actions.cancelDelete"
     >
       <p>
         “{{ pendingDelete?.title }}” will be deleted for good. This cannot be undone.

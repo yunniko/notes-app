@@ -56,7 +56,7 @@ test.describe("accounts", () => {
 
     await logInViaForm(page, account);
     await expect(page).toHaveURL(`/notes/${note.id}`);
-    await expect(page.getByLabel("Title")).toHaveValue(note.title);
+    await expect(page.getByRole("heading", { name: note.title })).toBeVisible();
   });
 
   test("a logged-in user is sent past the login page", async ({ page }) => {

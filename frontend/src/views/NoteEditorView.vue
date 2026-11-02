@@ -1,16 +1,18 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
-import { onBeforeRouteLeave, useRouter } from "vue-router";
+import { onBeforeRouteLeave, useRouter, type RouteLocationRaw } from "vue-router";
 import { ApiError, notesApi } from "@/api/notes";
 import NoteForm from "@/components/NoteForm.vue";
 import { useFlash } from "@/composables/useFlash";
+import { useListMemory } from "@/composables/useListMemory";
 import { formatDateTime } from "@/domain/format";
 import type { FieldErrors, Note, NoteInput } from "@/domain/note";
 
-/** Creates a note when `id` is absent, edits note `id` otherwise. */
+/** Creates a note when `id` is absent, edits note `id` otherwise. Leaving returns to the read-only note page. */
 const props = defineProps<{ id?: number }>();
 const router = useRouter();
 const flash = useFlash();
+const lists = useListMemory();
 
 const isNew = computed(() => props.id === undefined);
 const loading = ref(!isNew.value);
@@ -23,8 +25,10 @@ const serverErrors = ref<FieldErrors>({});
 const original = ref<Note | null>(null);
 /** Set when a save hit a 409: the note as someone else saved it meanwhile. */
 const conflict = ref<Note | null>(null);
-/** An archived note is edited like any other; leaving returns to the archive it came from. */
-const listRoute = computed(() => (original.value?.archivedAt ? "archive" : "notes"));
+/** Where Cancel and the back link go: the note itself, or the list for a note not yet created. */
+const leaveTo = computed<RouteLocationRaw>(() =>
+  props.id === undefined ? lists.backTo("notes") : { name: "note", params: { id: props.id } }
+);
 
 const emptyInput = (): NoteInput => ({ title: "", content: "", priority: "medium" });
 const form = ref<NoteInput>(emptyInput());
@@ -66,15 +70,17 @@ async function save(input: NoteInput, version = original.value?.version): Promis
   saveError.value = null;
   serverErrors.value = {};
   try {
+    let saved: Note | undefined;
     if (isNew.value) {
-      await notesApi.create(input);
+      saved = await notesApi.create(input);
       flash.show("Note created.");
     } else if (props.id !== undefined && version !== undefined) {
-      await notesApi.update(props.id, input, version);
+      saved = await notesApi.update(props.id, input, version);
       flash.show("Note saved.");
     }
     baseline.value = { ...form.value }; // nothing unsaved any more: leave without the prompt
-    await router.push({ name: listRoute.value });
+    // Replace, so Back from the note page skips the form that was just submitted.
+    if (saved) await router.replace({ name: "note", params: { id: saved.id } });
   } catch (error) {
     if (error instanceof ApiError && error.isConflict && error.current) {
       conflict.value = error.current;
@@ -106,7 +112,7 @@ function keepMine(): void {
 }
 
 function cancel(): void {
-  void router.push({ name: listRoute.value });
+  void (isNew.value ? router.push(leaveTo.value) : router.replace(leaveTo.value));
 }
 
 // Unsaved-changes protection, both for in-app navigation and for closing the tab.
@@ -120,7 +126,7 @@ onBeforeUnmount(() => window.removeEventListener("beforeunload", onBeforeUnload)
 
 <template>
   <section class="editor" aria-labelledby="editor-heading">
-    <RouterLink class="back" :to="{ name: listRoute }">{{ listRoute === "archive" ? "← Archive" : "← All notes" }}</RouterLink>
+    <RouterLink class="back" :to="leaveTo">{{ isNew ? "← All notes" : "← Back to note" }}</RouterLink>
     <h1 id="editor-heading">{{ isNew ? "New note" : "Edit note" }}</h1>
 
     <p v-if="loading" role="status">Loading note…</p>
@@ -155,7 +161,7 @@ onBeforeUnmount(() => window.removeEventListener("beforeunload", onBeforeUnload)
       </div>
 
       <p v-if="original?.archivedAt" class="notice notice--info">
-        This note is archived. Restore it from the archive to see it among your notes again.
+        This note is archived. Saving keeps it archived; Restore on the note page brings it back.
       </p>
 
       <p v-if="saveError" class="notice notice--error" role="alert">{{ saveError }}</p>

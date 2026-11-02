@@ -13,8 +13,13 @@ test.describe("creating a note", () => {
     await page.getByLabel("Content (optional)").fill("Prague → Brno\nFriday morning");
     await page.getByRole("button", { name: "Create note" }).click();
 
-    await expect(page).toHaveURL("/");
+    // The new note opens read-only.
+    await expect(page).toHaveURL(/\/notes\/\d+$/);
     await expect(page.getByText("Note created.")).toBeVisible();
+    await expect(page.getByRole("heading", { name: title })).toBeVisible();
+    await expect(page.getByText("Friday morning")).toBeVisible();
+
+    await page.getByRole("link", { name: "← All notes" }).click();
     const card = noteCard(page, title);
     await expect(card).toContainText("High");
     await expect(card).toContainText("Prague → Brno");
@@ -44,13 +49,20 @@ test.describe("updating a note", () => {
     await page.goto("/");
 
     await noteCard(page, note.title).getByRole("link").click();
+    await expect(page.getByRole("heading", { name: note.title })).toBeVisible();
+    await page.getByRole("link", { name: "Edit" }).click();
     await expect(page.getByRole("heading", { name: "Edit note" })).toBeVisible();
     const newTitle = `${note.title} (final)`;
     await page.getByLabel("Title").fill(newTitle);
     await page.getByLabel("Medium").check();
     await page.getByRole("button", { name: "Save changes" }).click();
 
+    // Saving returns to the read-only note, showing the new version.
+    await expect(page).toHaveURL(`/notes/${note.id}`);
     await expect(page.getByText("Note saved.")).toBeVisible();
+    await expect(page.getByRole("heading", { name: newTitle })).toBeVisible();
+
+    await page.getByRole("link", { name: "← All notes" }).click();
     await expect(noteCard(page, newTitle)).toContainText("Medium"); // also waits for the list to load
     // Most recently updated first: the edited note now sorts above the one created after it.
     const titles = await page.getByRole("article").getByRole("heading").allTextContents();
@@ -61,7 +73,7 @@ test.describe("updating a note", () => {
   test("a concurrent edit is detected and can be overwritten knowingly", async ({ page }) => {
     const { request } = page;
     const note = await createNoteViaApi(request, uniqueTitle("Shared shopping list"), "medium");
-    await page.goto(`/notes/${note.id}`);
+    await page.goto(`/notes/${note.id}/edit`);
     await expect(page.getByLabel("Title")).toHaveValue(note.title);
 
     // Someone else saves first, from another tab or device.
@@ -80,23 +92,73 @@ test.describe("updating a note", () => {
 
     await banner.getByRole("button", { name: "Save mine anyway" }).click();
     await expect(page.getByText("Note saved.")).toBeVisible();
-    await expect(noteCard(page, mine)).toBeVisible();
-    await expect(noteCard(page, theirs)).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: mine })).toBeVisible();
   });
 
   test("leaving with unsaved changes asks first", async ({ page }) => {
     const { request } = page;
     const note = await createNoteViaApi(request, uniqueTitle("Unsaved"), "low");
-    await page.goto(`/notes/${note.id}`);
+    await page.goto(`/notes/${note.id}/edit`);
     await page.getByLabel("Title").fill("changed but not saved");
 
     page.once("dialog", (dialog) => void dialog.dismiss());
     await page.getByRole("button", { name: "Cancel" }).click();
-    await expect(page).toHaveURL(`/notes/${note.id}`);
+    await expect(page).toHaveURL(`/notes/${note.id}/edit`);
 
     page.once("dialog", (dialog) => void dialog.accept());
     await page.getByRole("button", { name: "Cancel" }).click();
+    await expect(page).toHaveURL(`/notes/${note.id}`);
+    await expect(page.getByRole("heading", { name: note.title })).toBeVisible();
+  });
+});
+
+test.describe("reading a note", () => {
+  test("a note opens read-only, and Edit switches to the form", async ({ page }) => {
+    const note = await createNoteViaApi(page.request, uniqueTitle("Packing list"), "high", "Passport\n\nCharger");
+    await page.goto(`/notes/${note.id}`);
+
+    await expect(page.getByRole("heading", { name: note.title })).toBeVisible();
+    await expect(page.getByText("High", { exact: true })).toBeVisible();
+    await expect(page.getByLabel("Content")).toHaveText("Passport\n\nCharger");
+    await expect(page.getByRole("textbox")).toHaveCount(0);
+
+    await page.getByRole("link", { name: "Edit" }).click();
+    await expect(page).toHaveURL(`/notes/${note.id}/edit`);
+    await expect(page.getByLabel("Title")).toHaveValue(note.title);
+    await page.getByRole("button", { name: "Cancel" }).click();
+    await expect(page).toHaveURL(`/notes/${note.id}`);
+  });
+
+  test("back from a note returns to the filtered list it was opened from", async ({ page }) => {
+    const note = await createNoteViaApi(page.request, uniqueTitle("Filtered"), "high");
+    await page.goto("/?priority=high");
+
+    await noteCard(page, note.title).getByRole("link").click();
+    await expect(page.getByRole("heading", { name: note.title })).toBeVisible();
+    await page.getByRole("link", { name: "← All notes" }).click();
+
+    await expect(page).toHaveURL("/?priority=high");
+    await expect(priorityChip(page, "High")).toHaveAttribute("aria-pressed", "true");
+  });
+
+  test("a note can be archived, restored and deleted from its page", async ({ page }) => {
+    const note = await createNoteViaApi(page.request, uniqueTitle("From the page"), "low");
+    await page.goto(`/notes/${note.id}`);
+
+    await page.getByRole("button", { name: "Archive" }).click();
+    await expect(page.getByText("Note archived.")).toBeVisible();
+    await expect(page.getByText("It is kept out of your notes list; Restore brings it back.")).toBeVisible();
+    await expect(page.getByRole("link", { name: "← Archive" })).toBeVisible();
+
+    await page.getByRole("button", { name: "Restore" }).click();
+    await expect(page.getByText("Note restored.")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Archive" })).toBeVisible();
+
+    await page.getByRole("button", { name: "Delete" }).click();
+    await page.getByRole("dialog", { name: "Delete this note?" }).getByRole("button", { name: "Delete permanently" }).click();
     await expect(page).toHaveURL("/");
+    await expect(page.getByText("Note deleted.")).toBeVisible();
+    await expect(noteCard(page, note.title)).toHaveCount(0);
   });
 });
 
@@ -132,8 +194,10 @@ test.describe("filtering by priority", () => {
 
 test.describe("bad addresses", () => {
   test("a missing note says so instead of showing an empty form", async ({ page }) => {
-    await page.goto("/notes/999999999");
-    await expect(page.getByRole("alert")).toContainText("This note does not exist");
+    for (const path of ["/notes/999999999", "/notes/999999999/edit"]) {
+      await page.goto(path);
+      await expect(page.getByRole("alert")).toContainText("This note does not exist");
+    }
   });
 
   test("an unknown page offers a way back", async ({ page }) => {

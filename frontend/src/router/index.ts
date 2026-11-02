@@ -22,6 +22,13 @@ const router = createRouter({
     {
       // Only positive integers match; anything else falls through to the not-found page.
       path: "/notes/:id(\\d+)",
+      name: "note",
+      component: () => import("@/views/NoteView.vue"),
+      props: (route) => ({ id: Number(route.params.id) }),
+      meta: { title: "Note" },
+    },
+    {
+      path: "/notes/:id(\\d+)/edit",
       name: "note-edit",
       component: () => import("@/views/NoteEditorView.vue"),
       props: (route) => ({ id: Number(route.params.id) }),

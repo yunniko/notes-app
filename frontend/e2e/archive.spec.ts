@@ -38,10 +38,13 @@ test.describe("archiving", () => {
     await page.goto("/archive");
 
     await noteCard(page, note.title).getByRole("link").click();
+    await page.getByRole("link", { name: "Edit" }).click();
     await expect(page.getByText("This note is archived.")).toBeVisible();
     await page.getByLabel("Title").fill(`${note.title} v2`);
     await page.getByRole("button", { name: "Save changes" }).click();
 
+    await expect(page).toHaveURL(`/notes/${note.id}`);
+    await page.getByRole("link", { name: "← Archive" }).click();
     await expect(page).toHaveURL("/archive");
     await expect(noteCard(page, `${note.title} v2`)).toBeVisible();
   });

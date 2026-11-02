@@ -12,7 +12,7 @@ const emit = defineEmits<{ archive: []; restore: []; delete: [] }>();
   <article class="card" :data-priority="note.priority">
     <header class="card__header">
       <h2 class="card__title">
-        <RouterLink :to="{ name: 'note-edit', params: { id: note.id } }">{{ note.title }}</RouterLink>
+        <RouterLink :to="{ name: 'note', params: { id: note.id } }">{{ note.title }}</RouterLink>
       </h2>
       <PriorityBadge :priority="note.priority" />
     </header>
