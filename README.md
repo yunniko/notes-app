@@ -5,6 +5,7 @@ A small notes app: create a note with a title, content and priority, edit it, an
 - **Backend:** PHP 8.5, Slim 4, PDO, MariaDB 12.3 LTS
 - **Frontend:** Vue 3 with TypeScript (Vite)
 - **Runs with:** Docker Compose. One command starts the whole stack.
+- **Live demo:** https://notes.app.julienika.cz
 
 ## Run it
 
