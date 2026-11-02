@@ -1,0 +1,4 @@
+vendor
+tests
+.php-cs-fixer.cache
+.phpunit.cache
