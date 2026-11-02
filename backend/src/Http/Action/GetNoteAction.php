@@ -6,6 +6,7 @@ namespace App\Http\Action;
 
 use App\Application\NoteService;
 use App\Http\Json;
+use App\Http\Middleware\RequireUser;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
@@ -17,6 +18,6 @@ final readonly class GetNoteAction
     /** @param array{id: string} $args */
     public function __invoke(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
     {
-        return Json::respond($response, ['data' => $this->notes->get((int) $args['id'])->toArray()]);
+        return Json::respond($response, ['data' => $this->notes->get(RequireUser::user($request)->id, (int) $args['id'])->toArray()]);
     }
 }

@@ -120,7 +120,7 @@ decision. In brief:
   no CORS to configure. Only nginx is published.
 - **Filter in the URL** ([D007](docs/decisions/D007-filter-in-url.md)) as a multi-select. An unknown priority is rejected with 422, not
   silently ignored.
-- **Migrations** ([D003](docs/decisions/D003-minimal-sql-migrator.md)). Numbered SQL files, applied once each by a 50-line migrator at
+- **Migrations** ([D003](docs/decisions/D003-minimal-sql-migrator.md)). Numbered SQL files, applied once each by a 65-line migrator at
   container start, so the schema can evolve without wiping the volume.
 - **Database details.** `utf8mb4` with a Unicode 14 collation, so emoji and any script are stored correctly. Lengths are counted in
   characters (`mb_strlen` on the server, code points in the browser), not bytes. Timestamps are stored in UTC with millisecond precision, and

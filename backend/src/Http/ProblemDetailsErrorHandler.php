@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace App\Http;
 
+use App\Domain\Exception\AuthenticationRequired;
+use App\Domain\Exception\InvalidCredentials;
 use App\Domain\Exception\NoteNotFound;
+use App\Domain\Exception\TooManyLoginAttempts;
 use App\Domain\Exception\ValidationFailed;
 use App\Domain\Exception\VersionConflict;
 use Psr\Http\Message\ResponseFactoryInterface;
@@ -39,6 +42,18 @@ final readonly class ProblemDetailsErrorHandler
                 'title' => 'Note not found',
                 'detail' => $exception->getMessage(),
             ]],
+            $exception instanceof AuthenticationRequired => [401, [
+                'title' => 'Authentication required',
+                'detail' => $exception->getMessage(),
+            ]],
+            $exception instanceof InvalidCredentials => [401, [
+                'title' => 'Login failed',
+                'detail' => $exception->getMessage(),
+            ]],
+            $exception instanceof TooManyLoginAttempts => [429, [
+                'title' => 'Too many attempts',
+                'detail' => $exception->getMessage(),
+            ]],
             $exception instanceof VersionConflict => [409, [
                 'title' => 'Edit conflict',
                 'detail' => $exception->getMessage(),
@@ -58,11 +73,15 @@ final readonly class ProblemDetailsErrorHandler
             error_log(sprintf('%s: %s', $exception::class, $logErrorDetails ? (string) $exception : $exception->getMessage()));
         }
 
-        return Json::respond(
+        $response = Json::respond(
             $this->responses->createResponse(),
             ['type' => 'about:blank', 'status' => $status] + $problem,
             $status,
             Json::PROBLEM_TYPE,
         );
+
+        return $exception instanceof TooManyLoginAttempts
+            ? $response->withHeader('Retry-After', (string) $exception->retryAfterSeconds)
+            : $response;
     }
 }

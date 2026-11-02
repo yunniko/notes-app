@@ -11,41 +11,47 @@ use App\Domain\NoteDraft;
 use App\Domain\NoteRepository;
 use DateTimeImmutable;
 
-/** Test double honouring the NoteRepository contract, including version checks. */
+/** Test double honouring the NoteRepository contract, including owner scoping and version checks. */
 final class InMemoryNoteRepository implements NoteRepository
 {
     /** @var array<int, Note> */
     private array $notes = [];
+    /** @var array<int, int> note id => owner id */
+    private array $owners = [];
     private int $nextId = 1;
     private int $clock = 0;
 
-    public function findAll(array $priorities = []): array
+    public function findAll(int $ownerId, array $priorities = []): array
     {
         $notes = array_filter(
             $this->notes,
-            static fn(Note $n): bool => $priorities === [] || in_array($n->priority, $priorities, true),
+            fn(Note $n): bool => $this->owners[$n->id] === $ownerId
+                && ($priorities === [] || in_array($n->priority, $priorities, true)),
         );
         usort($notes, static fn(Note $a, Note $b): int => [$b->updatedAt, $b->id] <=> [$a->updatedAt, $a->id]);
 
         return $notes;
     }
 
-    public function get(int $id): Note
+    public function get(int $ownerId, int $id): Note
     {
-        return $this->notes[$id] ?? throw new NoteNotFound($id);
+        $note = $this->notes[$id] ?? null;
+
+        return $note !== null && $this->owners[$id] === $ownerId ? $note : throw new NoteNotFound($id);
     }
 
-    public function create(NoteDraft $draft): Note
+    public function create(int $ownerId, NoteDraft $draft): Note
     {
         $now = $this->tick();
         $note = new Note($this->nextId++, $draft->title, $draft->content, $draft->priority, 1, $now, $now);
+        $this->owners[$note->id] = $ownerId;
 
         return $this->notes[$note->id] = $note;
     }
 
-    public function update(int $id, NoteDraft $draft, int $expectedVersion): Note
+    public function update(int $ownerId, int $id, NoteDraft $draft, int $expectedVersion): Note
     {
-        $current = $this->get($id);
+        $current = $this->get($ownerId, $id);
         if ($current->version !== $expectedVersion) {
             throw new VersionConflict($current, $expectedVersion);
         }

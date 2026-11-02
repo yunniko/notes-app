@@ -29,6 +29,11 @@ abstract class DatabaseTestCase extends TestCase
 
     protected function setUp(): void
     {
-        self::$pdo->exec('TRUNCATE TABLE notes');
+        // TRUNCATE is refused on a table that a foreign key points at, even an empty one.
+        self::$pdo->exec('SET FOREIGN_KEY_CHECKS = 0');
+        foreach (['notes', 'sessions', 'login_failures', 'users'] as $table) {
+            self::$pdo->exec("TRUNCATE TABLE {$table}");
+        }
+        self::$pdo->exec('SET FOREIGN_KEY_CHECKS = 1');
     }
 }

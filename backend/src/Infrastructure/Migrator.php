@@ -9,8 +9,9 @@ use RuntimeException;
 
 /**
  * Applies `migrations/NNN_name.sql` files in filename order, once each, recording them
- * in `schema_migrations`. Deliberately tiny: the schema is one table (see D003).
- * Note: MariaDB DDL commits implicitly, so a migration is not rolled back on failure;
+ * in `schema_migrations`. Deliberately tiny (see D003).
+ * A file may hold several statements, each ending with `;` at the end of a line; `--` comment
+ * lines are dropped. MariaDB DDL commits implicitly, so a failed migration is not rolled back:
  * keep each file to one logical change.
  */
 final readonly class Migrator
@@ -43,11 +44,22 @@ final readonly class Migrator
             if ($sql === false) {
                 throw new RuntimeException(sprintf('Cannot read migration %s.', $file));
             }
-            $this->pdo->exec($sql);
+            foreach (self::statements($sql) as $statement) {
+                $this->pdo->exec($statement);
+            }
             $this->pdo->prepare('INSERT INTO schema_migrations (name) VALUES (?)')->execute([$name]);
             $ran[] = $name;
         }
 
         return $ran;
+    }
+
+    /** @return list<string> */
+    private static function statements(string $sql): array
+    {
+        $withoutComments = preg_replace('/^\s*--.*$/m', '', $sql) ?? $sql;
+        $parts = preg_split('/;\s*$/m', $withoutComments) ?: [];
+
+        return array_values(array_filter(array_map(trim(...), $parts), static fn(string $s): bool => $s !== ''));
     }
 }

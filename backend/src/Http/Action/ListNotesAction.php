@@ -7,6 +7,7 @@ namespace App\Http\Action;
 use App\Application\NoteService;
 use App\Domain\Note;
 use App\Http\Json;
+use App\Http\Middleware\RequireUser;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
@@ -17,7 +18,7 @@ final readonly class ListNotesAction
 
     public function __invoke(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        $notes = $this->notes->list($request->getQueryParams()['priority'] ?? null);
+        $notes = $this->notes->list(RequireUser::user($request)->id, $request->getQueryParams()['priority'] ?? null);
 
         return Json::respond($response, ['data' => array_map(static fn(Note $note): array => $note->toArray(), $notes)]);
     }

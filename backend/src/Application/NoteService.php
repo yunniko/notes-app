@@ -13,7 +13,7 @@ use App\Domain\NoteValidator;
 
 /**
  * The use cases of the app. HTTP actions call this and know nothing about storage;
- * the repository knows nothing about request formats.
+ * the repository knows nothing about request formats. Every call acts for one owner.
  */
 final readonly class NoteService
 {
@@ -27,25 +27,25 @@ final readonly class NoteService
      *
      * @throws ValidationFailed
      */
-    public function list(mixed $priorityFilter): array
+    public function list(int $ownerId, mixed $priorityFilter): array
     {
-        return $this->notes->findAll($this->validator->priorityFilter($priorityFilter));
+        return $this->notes->findAll($ownerId, $this->validator->priorityFilter($priorityFilter));
     }
 
     /** @throws NoteNotFound */
-    public function get(int $id): Note
+    public function get(int $ownerId, int $id): Note
     {
-        return $this->notes->get($id);
+        return $this->notes->get($ownerId, $id);
     }
 
     /** @throws ValidationFailed */
-    public function create(mixed $input): Note
+    public function create(int $ownerId, mixed $input): Note
     {
-        return $this->notes->create($this->validator->draft($input));
+        return $this->notes->create($ownerId, $this->validator->draft($input));
     }
 
     /** @throws ValidationFailed|NoteNotFound|VersionConflict */
-    public function update(int $id, mixed $input): Note
+    public function update(int $ownerId, int $id, mixed $input): Note
     {
         // Validate both parts before failing so the client gets every error in one response.
         $errors = [];
@@ -63,6 +63,6 @@ final readonly class NoteService
             throw new ValidationFailed($errors ?: ['body' => 'Invalid note.']);
         }
 
-        return $this->notes->update($id, $draft, $expectedVersion);
+        return $this->notes->update($ownerId, $id, $draft, $expectedVersion);
     }
 }

@@ -4,15 +4,27 @@ declare(strict_types=1);
 
 namespace App;
 
+use App\Domain\LoginThrottle;
 use App\Domain\NoteRepository;
+use App\Domain\SessionRepository;
+use App\Domain\UserRepository;
 use App\Http\Action\CreateNoteAction;
+use App\Http\Action\CurrentUserAction;
 use App\Http\Action\GetNoteAction;
 use App\Http\Action\HealthAction;
 use App\Http\Action\ListNotesAction;
+use App\Http\Action\LoginAction;
+use App\Http\Action\LogoutAction;
+use App\Http\Action\RegisterAction;
 use App\Http\Action\UpdateNoteAction;
+use App\Http\Middleware\RequireUser;
+use App\Http\Middleware\SameOriginGuard;
 use App\Http\ProblemDetailsErrorHandler;
 use App\Infrastructure\Database;
+use App\Infrastructure\PdoLoginThrottle;
 use App\Infrastructure\PdoNoteRepository;
+use App\Infrastructure\PdoSessionRepository;
+use App\Infrastructure\PdoUserRepository;
 use DI\ContainerBuilder;
 use PDO;
 use Psr\Container\ContainerInterface;
@@ -36,6 +48,9 @@ final class Bootstrap
             ->addDefinitions([
                 PDO::class => factory(static fn(): PDO => Database::fromEnvironment()->connect()),
                 NoteRepository::class => autowire(PdoNoteRepository::class),
+                UserRepository::class => autowire(PdoUserRepository::class),
+                SessionRepository::class => autowire(PdoSessionRepository::class),
+                LoginThrottle::class => autowire(PdoLoginThrottle::class),
                 ResponseFactoryInterface::class => autowire(ResponseFactory::class),
             ], $overrides)
             ->build();
@@ -54,11 +69,18 @@ final class Bootstrap
 
         $app->group('/api', function (RouteCollectorProxy $api): void {
             $api->get('/health', HealthAction::class);
-            $api->get('/notes', ListNotesAction::class);
-            $api->post('/notes', CreateNoteAction::class);
-            $api->get('/notes/{id:[1-9][0-9]{0,9}}', GetNoteAction::class);
-            $api->put('/notes/{id:[1-9][0-9]{0,9}}', UpdateNoteAction::class);
-        });
+            $api->post('/auth/register', RegisterAction::class);
+            $api->post('/auth/login', LoginAction::class);
+            $api->post('/auth/logout', LogoutAction::class);
+
+            $api->group('', function (RouteCollectorProxy $user): void {
+                $user->get('/auth/me', CurrentUserAction::class);
+                $user->get('/notes', ListNotesAction::class);
+                $user->post('/notes', CreateNoteAction::class);
+                $user->get('/notes/{id:[1-9][0-9]{0,9}}', GetNoteAction::class);
+                $user->put('/notes/{id:[1-9][0-9]{0,9}}', UpdateNoteAction::class);
+            })->add(RequireUser::class);
+        })->add(SameOriginGuard::class);
 
         return $app;
     }

@@ -4,24 +4,14 @@ declare(strict_types=1);
 
 namespace App\Tests\Integration;
 
-use App\Bootstrap;
-use PDO;
-use Psr\Http\Message\ResponseInterface;
-use Slim\App;
-use Slim\Psr7\Factory\ServerRequestFactory;
-
 /** The whole stack: Slim routing, actions, error handler, service, PDO repository, MariaDB. */
-final class NotesApiTest extends DatabaseTestCase
+final class NotesApiTest extends ApiTestCase
 {
-    /** @var App<\Psr\Container\ContainerInterface> */
-    private App $app;
-
     protected function setUp(): void
     {
         parent::setUp();
-        $this->app = Bootstrap::app(Bootstrap::container([PDO::class => self::$pdo]));
+        $this->register();
     }
-
     public function testHealth(): void
     {
         $response = $this->request('GET', '/api/health');
@@ -123,44 +113,31 @@ final class NotesApiTest extends DatabaseTestCase
         self::assertSame(405, $this->request('DELETE', '/api/notes')->getStatusCode());
     }
 
+    public function testNotesBelongToTheirAuthor(): void
+    {
+        $note = $this->data($this->request('POST', '/api/notes', ['title' => 'Alice only', 'priority' => 'high']));
+        $url = $this->url($note);
+
+        $this->register('bob');
+        self::assertSame([], $this->list(''));
+        self::assertSame(404, $this->request('GET', $url)->getStatusCode());
+        self::assertSame(404, $this->request('PUT', $url, ['title' => 'Bob was here', 'priority' => 'low', 'version' => 1])->getStatusCode());
+
+        $this->session = null;
+        self::assertSame(401, $this->request('GET', '/api/notes')->getStatusCode());
+        self::assertSame(401, $this->request('GET', $url)->getStatusCode());
+        self::assertSame(401, $this->request('POST', '/api/notes', ['title' => 'Anonymous', 'priority' => 'low'])->getStatusCode());
+
+        $this->request('POST', '/api/auth/login', ['username' => 'alice', 'password' => self::PASSWORD]);
+        self::assertSame('Alice only', $this->data($this->request('GET', $url))['title']);
+    }
+
     public function testUnicodeRoundTripsUnchanged(): void
     {
         $text = "Příliš žluťoučký kůň 🐎\n<script>alert(1)</script>";
         $note = $this->data($this->request('POST', '/api/notes', ['title' => 'Čeština', 'content' => $text, 'priority' => 'low']));
 
         self::assertSame($text, $this->data($this->request('GET', $this->url($note)))['content']);
-    }
-
-    /** @param array<string, mixed>|string|null $body array = JSON-encoded, string = sent raw */
-    private function request(string $method, string $uri, array|string|null $body = null, string $contentType = 'application/json'): ResponseInterface
-    {
-        $request = new ServerRequestFactory()->createServerRequest($method, $uri);
-        parse_str((string) parse_url($uri, PHP_URL_QUERY), $query);
-        $request = $request->withQueryParams($query);
-        if ($body !== null) {
-            $request->getBody()->write(is_string($body) ? $body : json_encode($body, JSON_THROW_ON_ERROR));
-            $request = $request->withHeader('Content-Type', $contentType);
-        }
-
-        return $this->app->handle($request);
-    }
-
-    /** @return array<mixed> */
-    private function json(ResponseInterface $response): array
-    {
-        $decoded = json_decode((string) $response->getBody(), true, 512, JSON_THROW_ON_ERROR);
-        self::assertIsArray($decoded);
-
-        return $decoded;
-    }
-
-    /** @return array<mixed> */
-    private function data(ResponseInterface $response): array
-    {
-        $data = $this->json($response)['data'] ?? null;
-        self::assertIsArray($data);
-
-        return $data;
     }
 
     /** @return list<array<mixed>> */

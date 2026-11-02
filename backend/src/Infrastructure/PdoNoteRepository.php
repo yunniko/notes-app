@@ -10,14 +10,11 @@ use App\Domain\Note;
 use App\Domain\NoteDraft;
 use App\Domain\NoteRepository;
 use App\Domain\Priority;
-use DateTimeImmutable;
-use DateTimeZone;
 use PDO;
-use UnexpectedValueException;
 
 /**
  * MariaDB implementation of NoteRepository using PDO prepared statements only.
- * The connection runs in UTC (see Database::connect), so stored timestamps are UTC.
+ * Every statement carries `user_id = ?`, so no query can reach another user's note (D010).
  */
 final readonly class PdoNoteRepository implements NoteRepository
 {
@@ -25,95 +22,69 @@ final readonly class PdoNoteRepository implements NoteRepository
 
     public function __construct(private PDO $pdo) {}
 
-    public function findAll(array $priorities = []): array
+    public function findAll(int $ownerId, array $priorities = []): array
     {
-        $sql = 'SELECT ' . self::COLUMNS . ' FROM notes';
-        $params = [];
+        $sql = 'SELECT ' . self::COLUMNS . ' FROM notes WHERE user_id = ?';
+        $params = [$ownerId];
         if ($priorities !== []) {
-            $sql .= ' WHERE priority IN (' . implode(', ', array_fill(0, count($priorities), '?')) . ')';
-            $params = array_map(static fn(Priority $p): string => $p->value, $priorities);
+            $sql .= ' AND priority IN (' . implode(', ', array_fill(0, count($priorities), '?')) . ')';
+            array_push($params, ...array_map(static fn(Priority $p): string => $p->value, $priorities));
         }
         $sql .= ' ORDER BY updated_at DESC, id DESC';
 
         $statement = $this->pdo->prepare($sql);
         $statement->execute($params);
 
-        return array_map($this->hydrate(...), $this->rows($statement->fetchAll()));
+        return array_map(self::hydrate(...), Rows::all($statement));
     }
 
-    public function get(int $id): Note
+    public function get(int $ownerId, int $id): Note
     {
-        $statement = $this->pdo->prepare('SELECT ' . self::COLUMNS . ' FROM notes WHERE id = ?');
-        $statement->execute([$id]);
-        $rows = $this->rows($statement->fetchAll());
+        $statement = $this->pdo->prepare('SELECT ' . self::COLUMNS . ' FROM notes WHERE id = ? AND user_id = ?');
+        $statement->execute([$id, $ownerId]);
+        $row = Rows::first($statement);
 
-        return $rows === [] ? throw new NoteNotFound($id) : $this->hydrate($rows[0]);
+        return $row === null ? throw new NoteNotFound($id) : self::hydrate($row);
     }
 
-    public function create(NoteDraft $draft): Note
+    public function create(int $ownerId, NoteDraft $draft): Note
     {
-        $statement = $this->pdo->prepare('INSERT INTO notes (title, content, priority) VALUES (?, ?, ?)');
-        $statement->execute([$draft->title, $draft->content, $draft->priority->value]);
+        $statement = $this->pdo->prepare('INSERT INTO notes (user_id, title, content, priority) VALUES (?, ?, ?, ?)');
+        $statement->execute([$ownerId, $draft->title, $draft->content, $draft->priority->value]);
 
-        return $this->get((int) $this->pdo->lastInsertId());
+        return $this->get($ownerId, (int) $this->pdo->lastInsertId());
     }
 
-    public function update(int $id, NoteDraft $draft, int $expectedVersion): Note
+    public function update(int $ownerId, int $id, NoteDraft $draft, int $expectedVersion): Note
     {
         // Compare-and-set in one statement: the WHERE on version makes a concurrent
         // edit lose cleanly instead of overwriting (D004).
         $statement = $this->pdo->prepare(
             'UPDATE notes
                 SET title = ?, content = ?, priority = ?, version = version + 1, updated_at = CURRENT_TIMESTAMP(3)
-              WHERE id = ? AND version = ?',
+              WHERE id = ? AND user_id = ? AND version = ?',
         );
-        $statement->execute([$draft->title, $draft->content, $draft->priority->value, $id, $expectedVersion]);
+        $statement->execute([$draft->title, $draft->content, $draft->priority->value, $id, $ownerId, $expectedVersion]);
 
         if ($statement->rowCount() === 0) {
-            // Either the note is gone (get() throws NoteNotFound) or its version moved on.
-            throw new VersionConflict($this->get($id), $expectedVersion);
+            // Either the owner has no such note (get() throws NoteNotFound) or its version moved on.
+            throw new VersionConflict($this->get($ownerId, $id), $expectedVersion);
         }
 
-        return $this->get($id);
-    }
-
-    /**
-     * @return list<array<string, mixed>>
-     */
-    private function rows(mixed $result): array
-    {
-        if (!is_array($result)) {
-            throw new UnexpectedValueException('PDO fetchAll did not return an array.');
-        }
-
-        /** @var list<array<string, mixed>> $result */
-        return $result;
+        return $this->get($ownerId, $id);
     }
 
     /** @param array<string, mixed> $row */
-    private function hydrate(array $row): Note
+    private static function hydrate(array $row): Note
     {
-        $utc = new DateTimeZone('UTC');
-
         return new Note(
-            id: (int) self::scalar($row, 'id'),
-            title: (string) self::scalar($row, 'title'),
-            content: (string) self::scalar($row, 'content'),
-            priority: Priority::from((string) self::scalar($row, 'priority')),
-            version: (int) self::scalar($row, 'version'),
-            createdAt: new DateTimeImmutable((string) self::scalar($row, 'created_at'), $utc),
-            updatedAt: new DateTimeImmutable((string) self::scalar($row, 'updated_at'), $utc),
+            id: Rows::int($row, 'id'),
+            title: Rows::string($row, 'title'),
+            content: Rows::string($row, 'content'),
+            priority: Priority::from(Rows::string($row, 'priority')),
+            version: Rows::int($row, 'version'),
+            createdAt: Rows::utc($row, 'created_at'),
+            updatedAt: Rows::utc($row, 'updated_at'),
         );
-    }
-
-    /** @param array<string, mixed> $row */
-    private static function scalar(array $row, string $column): int|float|string
-    {
-        $value = $row[$column] ?? null;
-        if (!is_scalar($value) || is_bool($value)) {
-            throw new UnexpectedValueException(sprintf('Column "%s" is missing or not scalar.', $column));
-        }
-
-        return $value;
     }
 }
