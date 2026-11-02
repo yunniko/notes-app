@@ -1,4 +1,4 @@
-# Database and API. Ports bind to 127.0.0.1 only.
+# One-command start: `docker compose up --build`, then open http://localhost:8088
 # Ports bind to 127.0.0.1 only. Credentials below are local-development defaults;
 # override them in a .env file (see .env.example).
 name: notes-app
@@ -37,6 +37,19 @@ services:
     depends_on:
       db:
         condition: service_healthy
+
+  web:
+    build: ./frontend
+    ports:
+      - "127.0.0.1:${APP_PORT:-8088}:80"
+    depends_on:
+      - api
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/api/health"]
+      interval: 3s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
 
   # Backend checks (formatting, static analysis, unit + integration tests) against an
   # isolated test database:  docker compose --profile dev run --rm api-dev
