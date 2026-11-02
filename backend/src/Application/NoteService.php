@@ -27,9 +27,42 @@ final readonly class NoteService
      *
      * @throws ValidationFailed
      */
-    public function list(int $ownerId, mixed $priorityFilter): array
+    public function list(int $ownerId, mixed $priorityFilter, mixed $archivedFilter = null): array
     {
-        return $this->notes->findAll($ownerId, $this->validator->priorityFilter($priorityFilter));
+        $errors = [];
+        try {
+            $priorities = $this->validator->priorityFilter($priorityFilter);
+        } catch (ValidationFailed $e) {
+            $errors = $e->errors;
+        }
+        try {
+            $archived = $this->validator->archivedFilter($archivedFilter);
+        } catch (ValidationFailed $e) {
+            $errors += $e->errors;
+        }
+        if ($errors !== [] || !isset($priorities, $archived)) {
+            throw new ValidationFailed($errors ?: ['query' => 'Invalid filter.']);
+        }
+
+        return $this->notes->findAll($ownerId, $priorities, $archived);
+    }
+
+    /** @throws NoteNotFound */
+    public function archive(int $ownerId, int $id): Note
+    {
+        return $this->notes->setArchived($ownerId, $id, true);
+    }
+
+    /** @throws NoteNotFound */
+    public function restore(int $ownerId, int $id): Note
+    {
+        return $this->notes->setArchived($ownerId, $id, false);
+    }
+
+    /** Permanent; the UI asks for confirmation first. @throws NoteNotFound */
+    public function delete(int $ownerId, int $id): void
+    {
+        $this->notes->delete($ownerId, $id);
     }
 
     /** @throws NoteNotFound */

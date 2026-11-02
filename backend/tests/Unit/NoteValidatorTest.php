@@ -123,4 +123,21 @@ final class NoteValidatorTest extends TestCase
             }
         }
     }
+
+    public function testArchivedFilterAcceptsOnlyTrueOrFalse(): void
+    {
+        self::assertFalse($this->validator->archivedFilter(null));
+        self::assertFalse($this->validator->archivedFilter(''));
+        self::assertFalse($this->validator->archivedFilter('false'));
+        self::assertTrue($this->validator->archivedFilter('true'));
+
+        foreach (['1', 'TRUE', 'yes', ['true']] as $raw) {
+            try {
+                $this->validator->archivedFilter($raw);
+                self::fail('Expected ValidationFailed.');
+            } catch (ValidationFailed $e) {
+                self::assertArrayHasKey('archived', $e->errors);
+            }
+        }
+    }
 }

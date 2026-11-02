@@ -100,6 +100,63 @@ final class NoteServiceTest extends TestCase
         $this->service->update(2, $mine->id, ['title' => 'Taken over', 'priority' => 'low', 'version' => 1]);
     }
 
+    public function testArchivingMovesANoteBetweenTheTwoListsAndKeepsItsPlace(): void
+    {
+        $old = $this->service->create(self::OWNER, ['title' => 'Old', 'priority' => 'low']);
+        $this->service->create(self::OWNER, ['title' => 'New', 'priority' => 'high']);
+
+        $archived = $this->service->archive(self::OWNER, $old->id);
+        self::assertNotNull($archived->archivedAt);
+        self::assertSame(2, $archived->version);
+        self::assertEquals($old->updatedAt, $archived->updatedAt);
+        self::assertSame(['New'], $this->titles($this->service->list(self::OWNER, null)));
+        self::assertSame(['Old'], $this->titles($this->service->list(self::OWNER, 'low', 'true')));
+        self::assertSame([], $this->titles($this->service->list(self::OWNER, 'high', 'true')));
+
+        self::assertSame(2, $this->service->archive(self::OWNER, $old->id)->version, 'archiving twice changes nothing');
+
+        $restored = $this->service->restore(self::OWNER, $old->id);
+        self::assertNull($restored->archivedAt);
+        self::assertSame(3, $restored->version);
+        self::assertSame(['New', 'Old'], $this->titles($this->service->list(self::OWNER, null, 'false')));
+    }
+
+    public function testArchivedListIsMostRecentlyArchivedFirst(): void
+    {
+        $a = $this->service->create(self::OWNER, ['title' => 'A', 'priority' => 'low']);
+        $b = $this->service->create(self::OWNER, ['title' => 'B', 'priority' => 'low']);
+        $this->service->archive(self::OWNER, $b->id);
+        $this->service->archive(self::OWNER, $a->id);
+
+        self::assertSame(['A', 'B'], $this->titles($this->service->list(self::OWNER, null, 'true')));
+    }
+
+    public function testListReportsBothBadFiltersTogether(): void
+    {
+        try {
+            $this->service->list(self::OWNER, 'urgent', 'maybe');
+            self::fail('Expected ValidationFailed.');
+        } catch (ValidationFailed $e) {
+            self::assertSame(['priority', 'archived'], array_keys($e->errors));
+        }
+    }
+
+    public function testDeleteIsPermanentAndScopedToTheOwner(): void
+    {
+        $note = $this->service->create(self::OWNER, ['title' => 'Gone soon', 'priority' => 'low']);
+
+        try {
+            $this->service->delete(2, $note->id);
+            self::fail('Expected NoteNotFound.');
+        } catch (NoteNotFound) {
+            self::assertSame('Gone soon', $this->service->get(self::OWNER, $note->id)->title);
+        }
+
+        $this->service->delete(self::OWNER, $note->id);
+        $this->expectException(NoteNotFound::class);
+        $this->service->get(self::OWNER, $note->id);
+    }
+
     /**
      * @param list<Note> $notes
      *

@@ -20,9 +20,11 @@ final readonly class Note
         public int $version,
         public DateTimeImmutable $createdAt,
         public DateTimeImmutable $updatedAt,
+        /** Set while the note is archived (D013). */
+        public ?DateTimeImmutable $archivedAt = null,
     ) {}
 
-    /** @return array{id: int, title: string, content: string, priority: string, version: int, createdAt: string, updatedAt: string} */
+    /** @return array{id: int, title: string, content: string, priority: string, version: int, createdAt: string, updatedAt: string, archivedAt: ?string} */
     public function toArray(): array
     {
         return [
@@ -33,6 +35,7 @@ final readonly class Note
             'version' => $this->version,
             'createdAt' => $this->createdAt->format(DATE_ATOM),
             'updatedAt' => $this->updatedAt->format(DATE_ATOM),
+            'archivedAt' => $this->archivedAt?->format(DATE_ATOM),
         ];
     }
 }

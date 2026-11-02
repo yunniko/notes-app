@@ -17,13 +17,14 @@ use App\Domain\Exception\VersionConflict;
 interface NoteRepository
 {
     /**
-     * The owner's notes, most recently updated first.
+     * The owner's active notes, most recently updated first; or, with $archived, the archived
+     * ones, most recently archived first.
      *
      * @param list<Priority> $priorities empty list = no filter
      *
      * @return list<Note>
      */
-    public function findAll(int $ownerId, array $priorities = []): array;
+    public function findAll(int $ownerId, array $priorities = [], bool $archived = false): array;
 
     /** @throws NoteNotFound */
     public function get(int $ownerId, int $id): Note;
@@ -37,4 +38,15 @@ interface NoteRepository
      * @throws VersionConflict when the note was changed since $expectedVersion was read
      */
     public function update(int $ownerId, int $id, NoteDraft $draft, int $expectedVersion): Note;
+
+    /**
+     * Archives or restores the note. Idempotent; the version increments only when the state
+     * changes, and `updatedAt` is left alone because the content did not change (D013).
+     *
+     * @throws NoteNotFound
+     */
+    public function setArchived(int $ownerId, int $id, bool $archived): Note;
+
+    /** @throws NoteNotFound */
+    public function delete(int $ownerId, int $id): void;
 }

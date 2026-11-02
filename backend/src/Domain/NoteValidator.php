@@ -96,6 +96,20 @@ final class NoteValidator
     }
 
     /**
+     * Parses the `archived` list filter: "true" lists archived notes, "false" or blank active ones.
+     *
+     * @throws ValidationFailed
+     */
+    public function archivedFilter(mixed $raw): bool
+    {
+        return match ($raw) {
+            null, '', 'false' => false,
+            'true' => true,
+            default => throw new ValidationFailed(['archived' => 'Archived must be "true" or "false".']),
+        };
+    }
+
+    /**
      * @return array<string, mixed>
      *
      * @throws ValidationFailed

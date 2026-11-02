@@ -18,19 +18,20 @@ use PDO;
  */
 final readonly class PdoNoteRepository implements NoteRepository
 {
-    private const string COLUMNS = 'id, title, content, priority, version, created_at, updated_at';
+    private const string COLUMNS = 'id, title, content, priority, version, created_at, updated_at, archived_at';
 
     public function __construct(private PDO $pdo) {}
 
-    public function findAll(int $ownerId, array $priorities = []): array
+    public function findAll(int $ownerId, array $priorities = [], bool $archived = false): array
     {
-        $sql = 'SELECT ' . self::COLUMNS . ' FROM notes WHERE user_id = ?';
+        $sql = 'SELECT ' . self::COLUMNS . ' FROM notes WHERE user_id = ?'
+            . ($archived ? ' AND archived_at IS NOT NULL' : ' AND archived_at IS NULL');
         $params = [$ownerId];
         if ($priorities !== []) {
             $sql .= ' AND priority IN (' . implode(', ', array_fill(0, count($priorities), '?')) . ')';
             array_push($params, ...array_map(static fn(Priority $p): string => $p->value, $priorities));
         }
-        $sql .= ' ORDER BY updated_at DESC, id DESC';
+        $sql .= $archived ? ' ORDER BY archived_at DESC, id DESC' : ' ORDER BY updated_at DESC, id DESC';
 
         $statement = $this->pdo->prepare($sql);
         $statement->execute($params);
@@ -74,6 +75,28 @@ final readonly class PdoNoteRepository implements NoteRepository
         return $this->get($ownerId, $id);
     }
 
+    public function setArchived(int $ownerId, int $id, bool $archived): Note
+    {
+        // Matches only when the state actually changes, so repeating the call is a no-op.
+        $statement = $this->pdo->prepare($archived
+            ? 'UPDATE notes SET archived_at = CURRENT_TIMESTAMP(3), version = version + 1
+                WHERE id = ? AND user_id = ? AND archived_at IS NULL'
+            : 'UPDATE notes SET archived_at = NULL, version = version + 1
+                WHERE id = ? AND user_id = ? AND archived_at IS NOT NULL', );
+        $statement->execute([$id, $ownerId]);
+
+        return $this->get($ownerId, $id);
+    }
+
+    public function delete(int $ownerId, int $id): void
+    {
+        $statement = $this->pdo->prepare('DELETE FROM notes WHERE id = ? AND user_id = ?');
+        $statement->execute([$id, $ownerId]);
+        if ($statement->rowCount() === 0) {
+            throw new NoteNotFound($id);
+        }
+    }
+
     /** @param array<string, mixed> $row */
     private static function hydrate(array $row): Note
     {
@@ -85,6 +108,7 @@ final readonly class PdoNoteRepository implements NoteRepository
             version: Rows::int($row, 'version'),
             createdAt: Rows::utc($row, 'created_at'),
             updatedAt: Rows::utc($row, 'updated_at'),
+            archivedAt: ($row['archived_at'] ?? null) === null ? null : Rows::utc($row, 'archived_at'),
         );
     }
 }

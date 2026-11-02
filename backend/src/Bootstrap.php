@@ -8,14 +8,17 @@ use App\Domain\LoginThrottle;
 use App\Domain\NoteRepository;
 use App\Domain\SessionRepository;
 use App\Domain\UserRepository;
+use App\Http\Action\ArchiveNoteAction;
 use App\Http\Action\CreateNoteAction;
 use App\Http\Action\CurrentUserAction;
+use App\Http\Action\DeleteNoteAction;
 use App\Http\Action\GetNoteAction;
 use App\Http\Action\HealthAction;
 use App\Http\Action\ListNotesAction;
 use App\Http\Action\LoginAction;
 use App\Http\Action\LogoutAction;
 use App\Http\Action\RegisterAction;
+use App\Http\Action\RestoreNoteAction;
 use App\Http\Action\UpdateNoteAction;
 use App\Http\Middleware\RequireUser;
 use App\Http\Middleware\SameOriginGuard;
@@ -79,6 +82,9 @@ final class Bootstrap
                 $user->post('/notes', CreateNoteAction::class);
                 $user->get('/notes/{id:[1-9][0-9]{0,9}}', GetNoteAction::class);
                 $user->put('/notes/{id:[1-9][0-9]{0,9}}', UpdateNoteAction::class);
+                $user->delete('/notes/{id:[1-9][0-9]{0,9}}', DeleteNoteAction::class);
+                $user->post('/notes/{id:[1-9][0-9]{0,9}}/archive', ArchiveNoteAction::class);
+                $user->post('/notes/{id:[1-9][0-9]{0,9}}/restore', RestoreNoteAction::class);
             })->add(RequireUser::class);
         })->add(SameOriginGuard::class);
 

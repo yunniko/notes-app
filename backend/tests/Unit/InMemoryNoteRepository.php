@@ -21,14 +21,17 @@ final class InMemoryNoteRepository implements NoteRepository
     private int $nextId = 1;
     private int $clock = 0;
 
-    public function findAll(int $ownerId, array $priorities = []): array
+    public function findAll(int $ownerId, array $priorities = [], bool $archived = false): array
     {
         $notes = array_filter(
             $this->notes,
             fn(Note $n): bool => $this->owners[$n->id] === $ownerId
+                && ($n->archivedAt !== null) === $archived
                 && ($priorities === [] || in_array($n->priority, $priorities, true)),
         );
-        usort($notes, static fn(Note $a, Note $b): int => [$b->updatedAt, $b->id] <=> [$a->updatedAt, $a->id]);
+        usort($notes, static fn(Note $a, Note $b): int => $archived
+            ? [$b->archivedAt, $b->id] <=> [$a->archivedAt, $a->id]
+            : [$b->updatedAt, $b->id] <=> [$a->updatedAt, $a->id]);
 
         return $notes;
     }
@@ -64,7 +67,33 @@ final class InMemoryNoteRepository implements NoteRepository
             $current->version + 1,
             $current->createdAt,
             $this->tick(),
+            $current->archivedAt,
         );
+    }
+
+    public function setArchived(int $ownerId, int $id, bool $archived): Note
+    {
+        $current = $this->get($ownerId, $id);
+        if (($current->archivedAt !== null) === $archived) {
+            return $current;
+        }
+
+        return $this->notes[$id] = new Note(
+            $id,
+            $current->title,
+            $current->content,
+            $current->priority,
+            $current->version + 1,
+            $current->createdAt,
+            $current->updatedAt,
+            $archived ? $this->tick() : null,
+        );
+    }
+
+    public function delete(int $ownerId, int $id): void
+    {
+        $this->get($ownerId, $id);
+        unset($this->notes[$id], $this->owners[$id]);
     }
 
     /** A deterministic clock: every write is one second after the previous one. */

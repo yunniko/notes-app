@@ -33,6 +33,61 @@ final class NotesApiTest extends ApiTestCase
         $fetched = $this->request('GET', $this->url($note));
         self::assertSame(200, $fetched->getStatusCode());
         self::assertSame($note, $this->data($fetched));
+        self::assertNull($note['archivedAt']);
+    }
+
+    public function testArchiveAndRestore(): void
+    {
+        $note = $this->data($this->request('POST', '/api/notes', ['title' => 'Old idea', 'priority' => 'low']));
+        $this->request('POST', '/api/notes', ['title' => 'Current', 'priority' => 'high']);
+        $url = $this->url($note);
+
+        $archived = $this->request('POST', "{$url}/archive");
+        self::assertSame(200, $archived->getStatusCode());
+        self::assertIsString($this->data($archived)['archivedAt']);
+        self::assertSame(2, $this->data($archived)['version']);
+        self::assertSame($note['updatedAt'], $this->data($archived)['updatedAt']);
+        self::assertSame(['Current'], array_column($this->list(''), 'title'));
+        self::assertSame(['Old idea'], array_column($this->list('?archived=true'), 'title'));
+        self::assertSame(['Old idea'], array_column($this->list('?archived=true&priority=low'), 'title'));
+        self::assertSame([], $this->list('?archived=true&priority=high'));
+        self::assertSame(2, $this->data($this->request('POST', "{$url}/archive"))['version'], 'idempotent');
+
+        // An archived note can still be opened and edited.
+        self::assertSame(200, $this->request('PUT', $url, ['title' => 'Old idea, revised', 'priority' => 'low', 'version' => 2])->getStatusCode());
+
+        $restored = $this->request('POST', "{$url}/restore");
+        self::assertSame(200, $restored->getStatusCode());
+        self::assertNull($this->data($restored)['archivedAt']);
+        self::assertSame(4, $this->data($restored)['version']);
+        self::assertSame([], $this->list('?archived=true'));
+        self::assertSame(422, $this->request('GET', '/api/notes?archived=yes')->getStatusCode());
+    }
+
+    public function testDeleteIsPermanent(): void
+    {
+        $note = $this->data($this->request('POST', '/api/notes', ['title' => 'Delete me', 'priority' => 'medium']));
+        $url = $this->url($note);
+
+        $deleted = $this->request('DELETE', $url);
+        self::assertSame(204, $deleted->getStatusCode());
+        self::assertSame('', (string) $deleted->getBody());
+        self::assertSame(404, $this->request('GET', $url)->getStatusCode());
+        self::assertSame(404, $this->request('DELETE', $url)->getStatusCode());
+        self::assertSame([], $this->list(''));
+    }
+
+    public function testAnotherUserCannotArchiveRestoreOrDelete(): void
+    {
+        $url = $this->url($this->data($this->request('POST', '/api/notes', ['title' => 'Mine', 'priority' => 'low'])));
+
+        $this->register('mallory');
+        foreach ([['POST', "{$url}/archive"], ['POST', "{$url}/restore"], ['DELETE', $url]] as [$method, $uri]) {
+            self::assertSame(404, $this->request($method, $uri)->getStatusCode(), "{$method} {$uri}");
+        }
+
+        $this->request('POST', '/api/auth/login', ['username' => 'alice', 'password' => self::PASSWORD]);
+        self::assertSame([null, 1], [$this->data($this->request('GET', $url))['archivedAt'], $this->data($this->request('GET', $url))['version']]);
     }
 
     public function testListFiltersByOneOrSeveralPriorities(): void
