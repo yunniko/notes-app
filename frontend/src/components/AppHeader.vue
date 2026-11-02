@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { useRoute, useRouter } from "vue-router";
+import { isNavigationFailure, NavigationFailureType, useRoute, useRouter } from "vue-router";
 import AccountMenu from "@/components/AccountMenu.vue";
 import SearchBox from "@/components/SearchBox.vue";
+import { useComposer } from "@/composables/useComposer";
 import { useFlash } from "@/composables/useFlash";
 import { useSession } from "@/composables/useSession";
 import { parseSearch, serializeSearch } from "@/domain/search";
@@ -15,6 +16,7 @@ const route = useRoute();
 const router = useRouter();
 const flash = useFlash();
 const session = useSession();
+const composer = useComposer();
 const loggingOut = ref(false);
 
 const onList = computed(() => route.name === "notes" || route.name === "archive");
@@ -22,6 +24,12 @@ const search = computed<string>({
   get: () => parseSearch(route.query.q),
   set: (text) => router.replace({ query: { ...route.query, q: serializeSearch(text) } }),
 });
+
+/** New note: back to the plain wall (no filter, no search), where the composer opens and takes focus. */
+async function newNote(): Promise<void> {
+  const failure = await router.push({ name: "notes" });
+  if (!failure || isNavigationFailure(failure, NavigationFailureType.duplicated)) composer.reveal();
+}
 
 async function logOut(): Promise<void> {
   loggingOut.value = true;
@@ -32,6 +40,7 @@ async function logOut(): Promise<void> {
   } finally {
     loggingOut.value = false;
   }
+  composer.resetDraft(); // logging out on purpose leaves nothing behind for the next person
   await router.push({ name: "login" });
   flash.show("You are logged out.");
 }
@@ -46,7 +55,7 @@ async function logOut(): Promise<void> {
       </RouterLink>
       <SearchBox v-if="session.user.value && onList" v-model="search" class="head__search" />
       <div v-if="session.user.value" class="head__end">
-        <RouterLink class="goldbtn" :to="{ name: 'note-new' }">
+        <button v-if="!onList || composer.newNoteVisible.value" type="button" class="goldbtn" @click="newNote">
           <svg
             width="18"
             height="18"
@@ -60,7 +69,7 @@ async function logOut(): Promise<void> {
             <path d="M12 5v14M5 12h14" />
           </svg>
           New note
-        </RouterLink>
+        </button>
         <AccountMenu :username="session.user.value.username" :busy="loggingOut" @log-out="logOut" />
       </div>
     </div>
@@ -123,9 +132,6 @@ async function logOut(): Promise<void> {
   display: flex;
   align-items: center;
   gap: 12px;
-}
-.goldbtn {
-  text-decoration: none;
 }
 @media (max-width: 640px) {
   .head__inner {

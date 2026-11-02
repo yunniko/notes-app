@@ -8,28 +8,25 @@ function mountFilter(modelValue: Priority[]) {
 }
 
 describe("PriorityFilter", () => {
-  it("marks All as pressed when nothing is selected", () => {
+  it("offers the three priorities, none pressed when nothing is selected", () => {
     const buttons = mountFilter([]).findAll("button");
 
-    expect(buttons.map((b) => b.text())).toEqual(["All", "High", "Medium", "Low"]);
-    expect(buttons.map((b) => b.attributes("aria-pressed"))).toEqual(["true", "false", "false", "false"]);
+    expect(buttons.map((b) => b.text())).toEqual(["High", "Medium", "Low"]);
+    expect(buttons.map((b) => b.attributes("aria-pressed"))).toEqual(["false", "false", "false"]);
   });
 
-  it("adds and removes a priority when its chip is toggled", async () => {
+  it("adds and removes a priority when its button is toggled, back to none for all", async () => {
     const wrapper = mountFilter(["high"]);
 
-    await wrapper.findAll("button")[3]!.trigger("click"); // Low
+    await wrapper.findAll("button")[2]!.trigger("click"); // Low
     expect(wrapper.emitted("update:modelValue")?.at(-1)).toEqual([["high", "low"]]);
 
     await wrapper.setProps({ modelValue: ["high", "low"] });
-    await wrapper.findAll("button")[1]!.trigger("click"); // High
+    await wrapper.findAll("button")[0]!.trigger("click"); // High
     expect(wrapper.emitted("update:modelValue")?.at(-1)).toEqual([["low"]]);
-  });
 
-  it("clears the selection with All", async () => {
-    const wrapper = mountFilter(["medium"]);
-
-    await wrapper.findAll("button")[0]!.trigger("click");
+    await wrapper.setProps({ modelValue: ["low"] });
+    await wrapper.findAll("button")[2]!.trigger("click");
     expect(wrapper.emitted("update:modelValue")?.at(-1)).toEqual([[]]);
   });
 });

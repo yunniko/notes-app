@@ -45,7 +45,7 @@ export function useNoteActions(handlers: NoteActionHandlers) {
   }
 
   async function archive(note: Note): Promise<void> {
-    const updated = await run(note, () => notesApi.archive(note.id), "Note archived. Find it under Archived.");
+    const updated = await run(note, () => notesApi.archive(note.id), "Note archived. Find it under Archived notes, below the wall.");
     if (updated) handlers.changed(updated);
   }
 

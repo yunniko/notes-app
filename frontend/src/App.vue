@@ -1,8 +1,14 @@
 <script setup lang="ts">
+import { watch } from "vue";
 import AppHeader from "@/components/AppHeader.vue";
+import { useComposer } from "@/composables/useComposer";
 import { useFlash } from "@/composables/useFlash";
+import { useSession } from "@/composables/useSession";
 
 const flash = useFlash();
+const session = useSession();
+const composer = useComposer();
+watch(() => session.user.value?.id ?? null, composer.belongTo, { immediate: true });
 </script>
 
 <template>

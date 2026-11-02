@@ -1,52 +1,55 @@
 import { expect, test } from "./helpers/auth";
-import { createNoteViaApi, noteCard, priorityChip, uniqueTitle } from "./helpers/notes";
+import { archiveLink, createNoteViaApi, noteCard, priorityChip, quickNote, uniqueTitle } from "./helpers/notes";
 
 test.describe("archiving", () => {
-  test("an archived note leaves the list, shows under Archived, and can be restored", async ({ page }) => {
+  test("an archived note leaves the wall, shows in the archive, and can be restored", async ({ page }) => {
     const note = await createNoteViaApi(page.request, uniqueTitle("Old plan"), "low");
     const other = await createNoteViaApi(page.request, uniqueTitle("Still current"), "high");
     await page.goto("/");
+    await expect(archiveLink(page)).toHaveText("Archived notes (0)");
 
     await noteCard(page, note.title).getByRole("button", { name: "Archive" }).click();
     await expect(page.getByText("Note archived.")).toBeVisible();
     await expect(noteCard(page, note.title)).toHaveCount(0);
     await expect(noteCard(page, other.title)).toBeVisible();
+    await expect(archiveLink(page)).toHaveText("Archived notes (1)");
 
-    await page.getByRole("link", { name: "Archived" }).click();
+    await archiveLink(page).click();
     await expect(page).toHaveURL("/archive");
     await expect(page.getByRole("heading", { name: "Archive", exact: true })).toBeVisible();
-    await expect(noteCard(page, note.title)).toContainText("Archived");
+    await expect(noteCard(page, note.title)).toContainText("Archived today");
     await expect(noteCard(page, other.title)).toHaveCount(0);
+    // The archive is for finding, not writing.
+    await expect(quickNote(page)).toHaveCount(0);
 
-    // The priority filter works in the archive too, and carries over between the tabs.
+    // The priority filter works in the archive too, and carries over between the two.
     await priorityChip(page, "High").click();
     await expect(page).toHaveURL("/archive?priority=high");
     await expect(page.getByText("No archived notes with this priority.")).toBeVisible();
-    await priorityChip(page, "All").click();
+    await page.getByRole("button", { name: "Show all priorities" }).click();
 
     await noteCard(page, note.title).getByRole("button", { name: "Restore" }).click();
     await expect(page.getByText("Note restored.")).toBeVisible();
     await expect(page.getByText("Nothing archived.")).toBeVisible();
 
-    await page.getByRole("link", { name: "Active" }).click();
+    await page.getByRole("link", { name: "← Back to notes" }).click();
+    await expect(page).toHaveURL("/");
     await expect(noteCard(page, note.title)).toBeVisible();
   });
 
-  test("an archived note can still be opened and edited", async ({ page }) => {
+  test("an archived note can still be edited in place", async ({ page }) => {
     const note = await createNoteViaApi(page.request, uniqueTitle("Reference"), "medium");
     expect((await page.request.post(`/api/notes/${note.id}/archive`)).status()).toBe(200);
     await page.goto("/archive");
 
-    await noteCard(page, note.title).getByRole("link").click();
-    await page.getByRole("link", { name: "Edit" }).click();
-    await expect(page.getByText("This note is archived.")).toBeVisible();
-    await page.getByLabel("Title").fill(`${note.title} v2`);
-    await page.getByRole("button", { name: "Save changes" }).click();
+    await noteCard(page, note.title).getByRole("button", { name: "Edit" }).click();
+    const form = page.getByRole("form", { name: "Edit note" });
+    await form.getByLabel("Title").fill(`${note.title} v2`);
+    await form.getByRole("button", { name: "Save" }).click();
 
-    await expect(page).toHaveURL(`/notes/${note.id}`);
-    await page.getByRole("link", { name: "← Archive" }).click();
+    await expect(page.getByText("Note saved.")).toBeVisible();
     await expect(page).toHaveURL("/archive");
-    await expect(noteCard(page, `${note.title} v2`)).toBeVisible();
+    await expect(noteCard(page, `${note.title} v2`)).toContainText("Archived");
   });
 });
 
@@ -78,7 +81,7 @@ test.describe("deleting", () => {
     await expect(noteCard(page, note.title)).toHaveCount(0);
   });
 
-  test("a note deleted elsewhere just leaves the list", async ({ page }) => {
+  test("a note deleted elsewhere just leaves the wall", async ({ page }) => {
     const note = await createNoteViaApi(page.request, uniqueTitle("Gone already"), "medium");
     await page.goto("/");
     await expect(noteCard(page, note.title)).toBeVisible();

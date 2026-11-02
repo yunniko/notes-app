@@ -16,5 +16,7 @@ One file per significant decision; append-only (a reversal is a new file).
 - [D012](D012-password-hashing-and-throttle.md) — Argon2id at OWASP minimums; ten failed logins lock a username for 15 minutes — active
 - [D013](D013-archive-and-permanent-delete.md) — Archive is a timestamp on the note; delete is permanent behind a confirmation — active
 - [D014](D014-search-with-like.md) — Search is a substring LIKE per word, not a FULLTEXT index — active
-- [D015](D015-read-only-note-page.md) — A note opens read-only at /notes/{id}; the form is a separate route — active
+- [D015](D015-read-only-note-page.md) — A note opens read-only at /notes/{id}; the form is a separate route — superseded by D017
 - [D016](D016-sort-and-list-counts.md) — The list sorts by newest, oldest or priority, and carries both lists' counts — active
+- [D017](D017-wall-with-inline-editing.md) — Notes live on one wall and are edited on their own card — active
+- [D018](D018-composer-draft-per-account.md) — The quick-note draft belongs to one account — active

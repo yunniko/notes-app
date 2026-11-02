@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { PASSWORD, logInViaForm, registerViaApi, uniqueUsername } from "./helpers/auth";
-import { createNoteViaApi, noteCard, uniqueTitle } from "./helpers/notes";
+import { createNoteViaApi, noteCard, priorityChip, quickNote, uniqueTitle } from "./helpers/notes";
 
 test.describe("accounts", () => {
   test("a visitor registers, lands on an empty list, and logs out", async ({ page }) => {
@@ -45,19 +45,21 @@ test.describe("accounts", () => {
 
   test("a wrong password is refused, the right one goes back where the visitor was heading", async ({ page }) => {
     const account = await registerViaApi(page.request);
-    const note = await createNoteViaApi(page.request, uniqueTitle("Deep link"), "low");
+    const note = await createNoteViaApi(page.request, uniqueTitle("Deep link"), "high");
     await page.context().clearCookies();
 
-    await page.goto(`/notes/${note.id}`);
-    await expect(page).toHaveURL(`/login?redirect=/notes/${note.id}`);
+    await page.goto("/?priority=high");
+    await expect(page).toHaveURL(/\/login\?/);
+    expect(new URL(page.url()).searchParams.get("redirect")).toBe("/?priority=high");
 
     await logInViaForm(page, { ...account, password: "not the password" });
     await expect(page.getByRole("alert")).toHaveText("Wrong username or password.");
     await expect(page.getByLabel("Password", { exact: true })).toHaveValue("");
 
     await logInViaForm(page, account);
-    await expect(page).toHaveURL(`/notes/${note.id}`);
-    await expect(page.getByRole("heading", { name: note.title })).toBeVisible();
+    await expect(page).toHaveURL("/?priority=high");
+    await expect(priorityChip(page, "High")).toHaveAttribute("aria-pressed", "true");
+    await expect(noteCard(page, note.title)).toBeVisible();
   });
 
   test("a logged-in user is sent past the login page", async ({ page }) => {
@@ -66,18 +68,35 @@ test.describe("accounts", () => {
     await expect(page).toHaveURL("/");
   });
 
-  test("an ended session sends the user to log in", async ({ page }) => {
-    await registerViaApi(page.request);
-    await page.goto("/notes/new");
-    await expect(page.getByRole("heading", { name: "New note" })).toBeVisible();
+  test("an ended session sends the user to log in, and their draft waits for them", async ({ page }) => {
+    const account = await registerViaApi(page.request);
+    await page.goto("/");
+    const composer = quickNote(page);
+    await expect(composer).toBeVisible();
 
     await page.context().clearCookies(); // as if the session expired meanwhile
-    await page.getByLabel("Title").fill("Written after the session ended");
-    page.once("dialog", (dialog) => void dialog.accept()); // the unsaved-changes prompt
-    await page.getByRole("button", { name: "Create note" }).click();
+    await composer.getByLabel("Title").fill("Written after the session ended");
+    await composer.getByRole("button", { name: "Add note" }).click();
 
-    await expect(page).toHaveURL("/login?redirect=/notes/new");
+    await expect(page).toHaveURL("/login");
     await expect(page.getByText("Your session has ended.")).toBeVisible();
+    await logInViaForm(page, account);
+    await expect(quickNote(page).getByLabel("Title")).toHaveValue("Written after the session ended");
+  });
+
+  test("a draft is never handed to the next account in the same tab", async ({ page }) => {
+    await registerViaApi(page.request);
+    await page.goto("/");
+    await quickNote(page).getByLabel("Title").fill("Not for anyone else");
+    // A second account, registered without reloading the page (a reload would wipe the draft anyway).
+    const other = await registerViaApi(page.request);
+    await page.context().clearCookies();
+    await quickNote(page).getByRole("button", { name: "Add note" }).click();
+    await expect(page).toHaveURL("/login");
+
+    await logInViaForm(page, other);
+    await expect(page).toHaveURL("/");
+    await expect(quickNote(page).getByLabel("Title")).toHaveValue("");
   });
 });
 
@@ -96,8 +115,7 @@ test.describe("privacy", () => {
 
     await bobPage.goto("/");
     await expect(bobPage.getByText("No notes yet.")).toBeVisible();
-    await bobPage.goto(`/notes/${secret.id}`);
-    await expect(bobPage.getByRole("alert")).toContainText("This note does not exist");
+    expect((await bobPage.request.get(`/api/notes/${secret.id}`)).status()).toBe(404);
 
     await alice.close();
     await bob.close();

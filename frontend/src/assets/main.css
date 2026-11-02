@@ -149,10 +149,6 @@ a:hover {
 .sheet--archived::before {
   border-image: linear-gradient(135deg, #8e8a80 0%, #c9c5ba 35%, #77736a 65%, #b5b1a6 100%) 1;
 }
-/* Anything interactive inside a sheet sits above its frame. */
-.sheet > * {
-  position: relative;
-}
 
 /* An empty or message box drawn straight on the board. */
 .board-box {

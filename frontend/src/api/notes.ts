@@ -1,6 +1,7 @@
 import type { Note, NoteInput } from "@/domain/note";
 import type { Priority } from "@/domain/priority";
-import { request } from "./http";
+import type { NoteSort } from "@/domain/sort";
+import { request, requestEnvelope } from "./http";
 
 export { ApiError } from "./http";
 
@@ -10,17 +11,34 @@ export interface ListOptions {
   archived?: boolean;
   /** Words that must all occur in the title or content; blank = no search. */
   search?: string;
+  sort?: NoteSort;
+}
+
+/** How many notes each list holds, ignoring any filter or search. */
+export interface NoteCounts {
+  active: number;
+  archived: number;
+}
+
+export interface NoteList {
+  notes: Note[];
+  counts: NoteCounts;
 }
 
 /** Thin typed client for the notes API. Every call acts on the logged-in user's notes only. */
 export const notesApi = {
-  list({ priorities = [], archived = false, search = "" }: ListOptions = {}, signal?: AbortSignal): Promise<Note[]> {
+  async list(
+    { priorities = [], archived = false, search = "", sort = "newest" }: ListOptions = {},
+    signal?: AbortSignal
+  ): Promise<NoteList> {
     const query = new URLSearchParams();
     if (priorities.length > 0) query.set("priority", priorities.join(","));
     if (archived) query.set("archived", "true");
     if (search.trim()) query.set("q", search.trim());
+    if (sort !== "newest") query.set("sort", sort);
     const qs = query.toString();
-    return request<Note[]>("GET", `/api/notes${qs ? `?${qs}` : ""}`, undefined, signal);
+    const { data, meta } = await requestEnvelope<Note[]>("GET", `/api/notes${qs ? `?${qs}` : ""}`, undefined, signal);
+    return { notes: data, counts: toCounts(meta.counts) };
   },
 
   get(id: number, signal?: AbortSignal): Promise<Note> {
@@ -50,3 +68,9 @@ export const notesApi = {
     return request<void>("DELETE", `/api/notes/${id}`);
   },
 };
+
+function toCounts(raw: unknown): NoteCounts {
+  const value = (raw ?? {}) as Partial<Record<keyof NoteCounts, unknown>>;
+  const count = (n: unknown) => (typeof n === "number" && Number.isInteger(n) && n >= 0 ? n : 0);
+  return { active: count(value.active), archived: count(value.archived) };
+}

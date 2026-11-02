@@ -30,8 +30,17 @@ describe("notesApi", () => {
   it("lists with the priority filter as one comma-separated parameter", async () => {
     const fetchMock = mockFetch(200, { data: [note] });
 
-    await expect(notesApi.list({ priorities: ["high", "low"] })).resolves.toEqual([note]);
+    await expect(notesApi.list({ priorities: ["high", "low"] })).resolves.toEqual({ notes: [note], counts: { active: 0, archived: 0 } });
     expect(fetchMock.mock.calls[0]?.[0]).toBe("/api/notes?priority=high%2Clow");
+  });
+
+  it("sends a sort other than newest, and returns the counts of both lists", async () => {
+    const fetchMock = mockFetch(200, { data: [note], meta: { counts: { active: 3, archived: 1 } } });
+
+    await expect(notesApi.list({ sort: "priority" })).resolves.toEqual({ notes: [note], counts: { active: 3, archived: 1 } });
+    await notesApi.list({ sort: "newest" });
+
+    expect(fetchMock.mock.calls.map((call) => call[0])).toEqual(["/api/notes?sort=priority", "/api/notes"]);
   });
 
   it("asks for the archived notes only when told to", async () => {

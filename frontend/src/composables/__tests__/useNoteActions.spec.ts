@@ -37,7 +37,7 @@ describe("useNoteActions", () => {
 
     expect(handlers.changed).toHaveBeenCalledWith(archived);
     expect(actions.busyId.value).toBeNull();
-    expect(useFlash().message.value).toBe("Note archived. Find it under Archived.");
+    expect(useFlash().message.value).toBe("Note archived. Find it under Archived notes, below the wall.");
   });
 
   it("treats a 404 as a note deleted elsewhere", async () => {

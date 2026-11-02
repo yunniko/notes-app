@@ -35,6 +35,16 @@ export function setUnauthorizedHandler(handler: (() => void) | undefined): void 
 
 /** Sends a JSON request to the same-origin API and unwraps `{ data }`. A 204 resolves to undefined. */
 export async function request<T>(method: string, url: string, body?: unknown, signal?: AbortSignal): Promise<T> {
+  return (await requestEnvelope<T>(method, url, body, signal)).data;
+}
+
+/** Like `request`, but also returns the response's `meta` object (empty when there is none). */
+export async function requestEnvelope<T>(
+  method: string,
+  url: string,
+  body?: unknown,
+  signal?: AbortSignal
+): Promise<{ data: T; meta: Record<string, unknown> }> {
   let response: Response;
   try {
     response = await fetch(url, {
@@ -48,7 +58,7 @@ export async function request<T>(method: string, url: string, body?: unknown, si
     throw new ApiError("Cannot reach the server. Check your connection and try again.", 0);
   }
 
-  if (response.status === 204) return undefined as T;
+  if (response.status === 204) return { data: undefined as T, meta: {} };
 
   const payload: unknown = await response.json().catch(() => null);
   if (!response.ok) {
@@ -58,7 +68,7 @@ export async function request<T>(method: string, url: string, body?: unknown, si
   if (!isRecord(payload) || !("data" in payload)) {
     throw new ApiError("The server sent an unexpected response.", response.status);
   }
-  return payload.data as T;
+  return { data: payload.data as T, meta: isRecord(payload.meta) ? payload.meta : {} };
 }
 
 function toApiError(response: Response, payload: unknown): ApiError {

@@ -1,5 +1,5 @@
 import { expect, test } from "./helpers/auth";
-import { createNoteViaApi, noteCard, priorityChip, uniqueTitle } from "./helpers/notes";
+import { archiveLink, createNoteViaApi, noteCard, priorityChip, uniqueTitle } from "./helpers/notes";
 
 const searchBox = (page: import("@playwright/test").Page) => page.getByRole("searchbox", { name: "Search notes" });
 
@@ -54,23 +54,23 @@ test.describe("searching", () => {
     await expect(noteCard(page, note.title)).toBeVisible();
   });
 
-  test("the search carries over to the archive and back from a note", async ({ page }) => {
+  test("the search carries over to the archive and back", async ({ page }) => {
     const active = await createNoteViaApi(page.request, uniqueTitle("Invoice active"), "low");
     const archived = await createNoteViaApi(page.request, uniqueTitle("Invoice archived"), "low");
     expect((await page.request.post(`/api/notes/${archived.id}/archive`)).status()).toBe(200);
     await page.goto("/?q=invoice");
     await expect(noteCard(page, active.title)).toBeVisible();
 
-    await page.getByRole("link", { name: "Archived" }).click();
+    await archiveLink(page).click();
     await expect(page).toHaveURL("/archive?q=invoice");
     await expect(searchBox(page)).toHaveValue("invoice");
     await expect(noteCard(page, archived.title)).toBeVisible();
     await expect(noteCard(page, active.title)).toHaveCount(0);
 
-    await noteCard(page, archived.title).getByRole("link").click();
-    await page.getByRole("link", { name: "← Archive" }).click();
-    await expect(page).toHaveURL("/archive?q=invoice");
+    await page.getByRole("link", { name: "← Back to notes" }).click();
+    await expect(page).toHaveURL("/?q=invoice");
     await expect(searchBox(page)).toHaveValue("invoice");
+    await expect(noteCard(page, active.title)).toBeVisible();
   });
 
   test("text that looks like a wildcard is searched literally", async ({ page }) => {

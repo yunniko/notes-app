@@ -21,11 +21,29 @@ export async function createNoteViaApi(request: APIRequestContext, title: string
   return body.data;
 }
 
-/** The card for a note in the list, located by its (unique) title link. */
+/** The sheet for a note on the wall: an article named by the note's (unique) title. */
 export function noteCard(page: Page, title: string) {
-  return page.getByRole("article").filter({ has: page.getByRole("link", { name: title, exact: true }) });
+  return page.getByRole("article", { name: title, exact: true });
 }
 
-export function priorityChip(page: Page, name: "All" | "High" | "Medium" | "Low") {
+export function priorityChip(page: Page, name: "High" | "Medium" | "Low") {
   return page.getByRole("group", { name: "Filter by priority" }).getByRole("button", { name, exact: true });
+}
+
+export function sortButton(page: Page, name: "Newest" | "Oldest" | "Priority") {
+  return page.getByRole("group", { name: "Sort notes" }).getByRole("button", { name, exact: true });
+}
+
+export function quickNote(page: Page) {
+  return page.getByRole("form", { name: "Quick note" });
+}
+
+/** The archive link under the wall, "Archived notes (N)". */
+export function archiveLink(page: Page) {
+  return page.getByRole("link", { name: /^Archived notes/ });
+}
+
+/** Titles of the sheets in document order. With one column (a narrow viewport) that is the list order. */
+export async function sheetTitles(page: Page): Promise<string[]> {
+  return page.getByRole("article").evaluateAll((sheets) => sheets.map((sheet) => sheet.getAttribute("aria-label") ?? ""));
 }

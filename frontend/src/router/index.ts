@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory, type RouteLocationNormalized, type RouteLocationRaw } from "vue-router";
 import { useSession } from "@/composables/useSession";
 import AuthView from "@/views/AuthView.vue";
-import NotesListView from "@/views/NotesListView.vue";
+import NotesWallView from "@/views/NotesWallView.vue";
 
 declare module "vue-router" {
   interface RouteMeta {
@@ -16,24 +16,10 @@ declare module "vue-router" {
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
-    { path: "/", name: "notes", component: NotesListView, props: { archived: false }, meta: { title: "Notes" } },
-    { path: "/archive", name: "archive", component: NotesListView, props: { archived: true }, meta: { title: "Archive" } },
-    { path: "/notes/new", name: "note-new", component: () => import("@/views/NoteEditorView.vue"), meta: { title: "New note" } },
-    {
-      // Only positive integers match; anything else falls through to the not-found page.
-      path: "/notes/:id(\\d+)",
-      name: "note",
-      component: () => import("@/views/NoteView.vue"),
-      props: (route) => ({ id: Number(route.params.id) }),
-      meta: { title: "Note" },
-    },
-    {
-      path: "/notes/:id(\\d+)/edit",
-      name: "note-edit",
-      component: () => import("@/views/NoteEditorView.vue"),
-      props: (route) => ({ id: Number(route.params.id) }),
-      meta: { title: "Edit note" },
-    },
+    { path: "/", name: "notes", component: NotesWallView, props: { archived: false }, meta: { title: "Notes" } },
+    { path: "/archive", name: "archive", component: NotesWallView, props: { archived: true }, meta: { title: "Archive" } },
+    // Notes used to open on pages of their own; old links and bookmarks land on the wall (D017).
+    { path: "/notes/:rest(.*)*", redirect: { name: "notes" } },
     { path: "/login", name: "login", component: AuthView, props: { mode: "login" }, meta: { title: "Log in", guestOnly: true } },
     {
       path: "/register",

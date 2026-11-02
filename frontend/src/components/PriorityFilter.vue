@@ -2,7 +2,7 @@
 import { PRIORITIES, PRIORITY_LABELS, type Priority } from "@/domain/priority";
 
 /**
- * Multi-select priority filter. An empty selection means "all priorities".
+ * Multi-select priority filter on the board. Nothing pressed means "all priorities".
  * Each option is a toggle button (aria-pressed), so it works by keyboard and screen reader.
  */
 const selected = defineModel<Priority[]>({ required: true });
@@ -13,44 +13,39 @@ function toggle(priority: Priority): void {
 </script>
 
 <template>
-  <div class="filter" role="group" aria-label="Filter by priority">
-    <button type="button" class="chip" :aria-pressed="selected.length === 0" @click="selected = []">All</button>
+  <div class="track" role="group" aria-label="Filter by priority">
     <button
       v-for="priority in PRIORITIES"
       :key="priority"
       type="button"
-      class="chip"
-      :class="`chip--${priority}`"
-      :aria-pressed="selected.includes(priority)"
+      class="seg"
+      :class="`seg--${priority}`"
+      :aria-pressed="selected.includes(priority) ? 'true' : 'false'"
       @click="toggle(priority)"
     >
-      {{ PRIORITY_LABELS[priority] }}
+      <span class="dot" aria-hidden="true"></span>{{ PRIORITY_LABELS[priority] }}
     </button>
   </div>
 </template>
 
 <style scoped>
-.filter {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
+/* The dot is a light tint on the dark track and the full colour once pressed (design values). */
+.seg--high .dot {
+  color: var(--high-dot);
 }
-.chip {
-  padding: 0.4rem 0.9rem;
-  border-radius: 999px;
-  border: 1px solid var(--border-strong);
-  background: var(--surface);
-  color: var(--text);
-  font: inherit;
-  font-size: 0.9rem;
-  cursor: pointer;
+.seg--medium .dot {
+  color: var(--medium-dot);
 }
-.chip:hover {
-  border-color: var(--accent);
+.seg--low .dot {
+  color: var(--low-dot);
 }
-.chip[aria-pressed="true"] {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--accent-contrast);
+.seg--high[aria-pressed="true"] .dot {
+  color: var(--high);
+}
+.seg--medium[aria-pressed="true"] .dot {
+  color: var(--medium);
+}
+.seg--low[aria-pressed="true"] .dot {
+  color: var(--low);
 }
 </style>
