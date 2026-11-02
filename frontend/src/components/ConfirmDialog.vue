@@ -47,9 +47,15 @@ function onCancel(event: Event): void {
   padding: 30px 30px 24px;
   gap: 12px;
 }
-/* `.sheet` sets display and position; a dialog must stay hidden while closed and fixed while open. */
+/* `.sheet` sets display and position, and the global reset drops the browser's `margin: auto`: a dialog
+   must stay hidden while closed, and fixed in the middle of the viewport while open. */
 .dialog {
   position: fixed;
+  inset: 0;
+  margin: auto;
+  height: fit-content;
+  max-height: calc(100dvh - 2rem);
+  overflow: auto;
 }
 .dialog:not([open]) {
   display: none;

@@ -65,6 +65,11 @@ test.describe("deleting", () => {
     await card.getByRole("button", { name: "Delete" }).click();
     const dialog = page.getByRole("dialog", { name: "Delete this note?" });
     await expect(dialog).toContainText(note.title);
+    // The confirmation sits in the middle of the viewport.
+    const box = (await dialog.boundingBox())!;
+    const viewport = page.viewportSize()!;
+    expect(Math.abs(box.x + box.width / 2 - viewport.width / 2)).toBeLessThan(2);
+    expect(Math.abs(box.y + box.height / 2 - viewport.height / 2)).toBeLessThan(2);
     await dialog.getByRole("button", { name: "Cancel" }).click();
     await expect(dialog).toBeHidden();
     await expect(card).toBeVisible();
