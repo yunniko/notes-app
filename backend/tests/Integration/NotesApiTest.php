@@ -106,7 +106,7 @@ final class NotesApiTest extends ApiTestCase
     {
         $this->request('POST', '/api/notes', ['title' => 'Café list', 'content' => 'Oat milk, ŽLUTÝ cukr', 'priority' => 'low']);
         $this->request('POST', '/api/notes', ['title' => 'Discount', 'content' => 'Save 50% on file_names', 'priority' => 'high']);
-        $this->request('POST', '/api/notes', ['title' => 'Plain', 'content' => 'Save 500 on filenames', 'priority' => 'high']);
+        $this->request('POST', '/api/notes', ['title' => 'Plain', 'content' => 'Save 500 on filenames!', 'priority' => 'high']);
 
         $search = fn(string $q, string $extra = ''): array => array_column($this->list('?q=' . rawurlencode($q) . $extra), 'title');
 
@@ -115,6 +115,7 @@ final class NotesApiTest extends ApiTestCase
         self::assertSame(['Café list'], $search('oat café'));
         self::assertSame(['Discount'], $search('50%'), '% is not a wildcard');
         self::assertSame(['Discount'], $search('file_n'), '_ is not a wildcard');
+        self::assertSame(['Plain'], $search('names!'), 'the escape character is matched as text');
         self::assertSame([], $search('cafe save'), 'every term must match');
         self::assertSame(['Plain', 'Discount'], $search('save', '&priority=high'));
         self::assertSame([], $search('save', '&archived=true'));
